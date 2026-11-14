@@ -146,12 +146,22 @@ function render() {
   document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.r === tab));
   if (!S.ready) return;
   const v = $('#view');
+  // ao redesenhar a mesma página, manter a posição das barras de filtros (separadores) e da página
+  const same = S.lastRoute === r, keep = same ? [...v.querySelectorAll('.tabs')].map(t => t.scrollLeft) : [], y = window.scrollY;
+  S.lastRoute = r;
   if (r.startsWith('race-')) v.innerHTML = viewRace(r.slice(5));
   else if (r.startsWith('prova-')) v.innerHTML = viewEvent(r.slice(6));
   else if (r.startsWith('boat-')) v.innerHTML = viewBoat(r.slice(5));
   else if (r === 'regatas' || r === 'provas') v.innerHTML = viewRegatas();
   else if (r === 'frota') v.innerHTML = viewFleet();
   else v.innerHTML = viewStandings();
+  v.querySelectorAll('.tabs').forEach((t, i) => {
+    if (keep[i] != null) t.scrollLeft = keep[i];
+    const on = t.querySelector('.on'); if (!on) return;
+    const tr = t.getBoundingClientRect(), r2 = on.getBoundingClientRect();
+    if (r2.left < tr.left || r2.right > tr.right) t.scrollLeft += r2.left < tr.left ? r2.left - tr.left - 8 : r2.right - tr.right + 8;
+  });
+  if (same) window.scrollTo(0, y);
 }
 
 /* ---------- classificações ---------- */
