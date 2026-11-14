@@ -538,8 +538,8 @@ function openBoatForm(id, enterEvent) {
   const isNew = !id, needCert = isNew || (!b.classRef && !(b.certs || []).length);
   dialog(id ? 'Editar barco' : 'Novo barco', `<div class="grid-f">${field('bName', 'Nome', b.name)}${field('bSail', 'Número de vela', b.sail, 'placeholder="ex.: POR 1234"')}${field('bType', 'Tipo / modelo', b.type, 'placeholder="ex.: First 31.7"')}
     ${sel('bClub', 'Clube do barco', b.clubId, clubOpts())}
-    ${field('bSkipName', 'Skipper (escreva o nome)', skipperName(b.skipperId), 'list="skList" autocomplete="off"')}<datalist id="skList">${Object.values(S.skippers).sort((x, y) => x.name.localeCompare(y.name)).map(x => `<option value="${esc(x.name)}">${esc(clubShort(x.clubId))}</option>`).join('')}</datalist></div>
-    <div class="small muted" id="skHint"></div>
+    ${field('bSkipName', 'Skipper habitual — vale em todos os eventos', skipperName(b.skipperId), 'list="skList" autocomplete="off"')}<datalist id="skList">${Object.values(S.skippers).sort((x, y) => x.name.localeCompare(y.name)).map(x => `<option value="${esc(x.name)}">${esc(clubShort(x.clubId))}</option>`).join('')}</datalist></div>
+    <div class="small muted" id="skHint"></div>${id ? '<div class="small muted">Para mudar o skipper só numa prova, use ✎ em Frota → Inscritos.</div>' : ''}
     <div class="grid-f" id="newSk" hidden>${field('skLic', 'Nº licença desportiva do novo skipper (opcional)', '')}${sel('skClub', 'Clube do skipper', b.clubId, clubOpts())}</div>
     ${needCert ? '<div class="card" style="padding:10px"><h3>Certificado</h3><div class="small muted">Procura automática na base ORC (certificados ativos) pelo nome, vela e modelo.</div><div id="certPick" class="list"></div></div>' : ''}
     <details><summary class="small">Mais opções</summary><div class="grid-f" style="margin-top:8px">${field('bAka', 'Outros nomes (separados por vírgula)', (b.aka || []).join(', '))}
