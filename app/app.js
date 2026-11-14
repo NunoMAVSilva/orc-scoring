@@ -22,7 +22,15 @@ const byName = (a, b) => (a[1].name || '').localeCompare(b[1].name || '');
 const uniqueId = (col, base) => { let id = base, i = 2; while (S[col][id]) id = base + '-' + i++; return id; };
 const clone = o => JSON.parse(JSON.stringify(o));
 
-function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+// Mensagens no canto superior direito, sempre por cima de janelas abertas (camada "top layer" via popover).
+function toast(msg) {
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg;
+  const dlg = $('#dlg');
+  if (typeof t.showPopover === 'function') { t.popover = 'manual'; document.body.appendChild(t); t.showPopover(); }
+  else (dlg && dlg.open ? dlg : document.body).appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
 function dbState() { return { boats: S.boats, classes: S.classes }; }
 
 /* ---------- modelo ---------- */
