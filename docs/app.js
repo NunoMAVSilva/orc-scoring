@@ -213,7 +213,8 @@ function viewEvent(eid, single) {
       <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span></a>`;
   }).join('');
   const entries = (e.entries || []).filter(id => S.boats[id]).map(id => [id, S.boats[id]]).sort(byName);
-  const entryRows = entries.map(([id, b]) => `<tr><td class="boat"><a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span></td><td>${esc(skipperName(b.skipperId))}</td><td>${esc(clubShort(b.clubId))}</td><td>${E.certAt(b, e.dateFrom || today(), dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td></tr>`).join('');
+  const racedIds = new Set(rs.flatMap(r => (r.finishes || []).map(f => f.boatId)));
+  const entryRows = entries.map(([id, b]) => `<tr><td class="boat"><a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span></td><td>${esc(skipperName(b.skipperId))}</td><td>${esc(clubShort(b.clubId))}</td><td>${E.certAt(b, e.dateFrom || today(), dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td>${S.canEdit ? `<td>${racedIds.has(id) ? '<span class="small muted" title="Tem resultados nesta prova">—</span>' : `<button class="x btn sm dang" data-a="entryDel" data-e="${esc(eid)}" data-id="${esc(id)}" aria-label="Retirar ${esc(b.name)}" title="Retirar da prova">×</button>`}</td>` : ''}</tr>`).join('');
   const tabs = groupsOf(rules);
   if (!tabs.find(t => t.k === S.evGroup)) S.evGroup = 'GERAL';
   const { st } = eventStandings(eid, S.evGroup);
@@ -229,8 +230,8 @@ function viewEvent(eid, single) {
     ${single ? '' : `<div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
       <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
       ${standingsTable(st, rs, rules)}</div>`}
-    <div class="card"><div class="row spread"><h3>Inscritos (${entries.length})</h3>${S.canEdit ? `<button class="btn sm pri" data-a="entries" data-id="${esc(eid)}">Gerir inscrições</button>` : ''}</div>
-      ${entries.length ? `<div class="scroll"><table><thead><tr><th>Barco</th><th>Skipper</th><th>Clube</th><th>Cert.</th></tr></thead><tbody>${entryRows}</tbody></table></div>` : '<div class="small muted">Ainda sem inscritos.</div>'}</div>`;
+    <div class="card"><div class="row spread"><h3>Inscritos (${entries.length})</h3>${S.canEdit ? `<div class="row">${entries.length ? `<button class="btn sm dang" data-a="entryDelAll" data-e="${esc(eid)}">Retirar todos</button>` : ''}<button class="btn sm pri" data-a="entries" data-id="${esc(eid)}">Gerir inscrições</button></div>` : ''}</div>
+      ${entries.length ? `<div class="scroll"><table><thead><tr><th>Barco</th><th>Skipper</th><th>Clube</th><th>Cert.</th>${S.canEdit ? '<th></th>' : ''}</tr></thead><tbody>${entryRows}</tbody></table></div>` : '<div class="small muted">Ainda sem inscritos.</div>'}</div>`;
 }
 
 /* ---------- regata ---------- */
@@ -665,6 +666,17 @@ async function onClick(e) {
     S.edit.init = new Set(S.edit.set); toast(n + ' barco(s) adicionados.'); drawEntries();
   }
   else if (a === 'impConfirm') confirmImport();
+  else if (a === 'entryDel') {
+    if (!confirmOnce('retirar?')) return;
+    if (await setEntry(t.dataset.e, id, false)) { toast(S.boats[id].name + ' retirado da prova (continua na base de dados).'); render(); }
+  }
+  else if (a === 'entryDelAll') {
+    const eid = t.dataset.e, raced = new Set(eventRaces(eid).flatMap(r => (r.finishes || []).map(f => f.boatId)));
+    const keep = (S.events[eid].entries || []).filter(b => raced.has(b));
+    if (!confirmOnce(`Confirmar: retirar ${(S.events[eid].entries || []).length - keep.length}`)) return;
+    const ev = clone(S.events[eid]); ev.entries = keep;
+    if (await save('events', eid, ev)) { toast(keep.length ? `Inscrições retiradas; ${keep.length} com resultados mantidos.` : 'Todas as inscrições retiradas.'); render(); }
+  }
   else if (a === 'entriesSave') {
     const ev = clone(S.events[S.edit.id]); ev.entries = [...S.edit.set].filter(b => S.boats[b]).sort();
     if (await save('events', S.edit.id, ev)) { toast('Inscrições gravadas.'); closeDlg(); }
