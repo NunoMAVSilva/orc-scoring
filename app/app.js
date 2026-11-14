@@ -110,6 +110,7 @@ async function init() {
     if (v === '__newE') { e.target.value = S.ctx || ''; return S.ctx ? openEventForm(null, ctxId()) : null; }
     if (v === '__set') { e.target.value = S.ctx || ''; return S.ctx ? openChampForm(ctxId()) : null; }
     S.ctx = v; try { localStorage.setItem('ctx', v); } catch (_) {}
+    pickCtx();
     S.group = 'GERAL'; location.hash = 'classificacao'; render();
   };
   document.addEventListener('click', onClick);
@@ -143,6 +144,7 @@ function downloadFile(filename, data) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const updatedNote = () => STATIC && S.exportedAt ? ` · Atualizado a ${dPT(S.exportedAt.slice(0, 10))} às ${new Date(S.exportedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' })}.` : '';
+function ctxLabel() { const sel = $('#ctxSel'), o = sel && sel.options[sel.selectedIndex]; if ($('#ctxLabel')) $('#ctxLabel').textContent = o ? o.textContent : '—'; }
 function pickCtx() {
   const champs = Object.entries(S.champs).sort((a, b) => (b[1].dateFrom || b[1].season || '').localeCompare(a[1].dateFrom || a[1].season || ''));
   const valid = v => v && v[0] === 'c' && S.champs[v.slice(2)];
@@ -152,6 +154,7 @@ function pickCtx() {
   $('#ctxSel').innerHTML = champs.map(([id, c]) => opt('c:' + id, c.name)).join('')
     + (S.canEdit ? `<option value="__newC">+ Criar campeonato</option><option value="__newE" ${S.ctx ? '' : 'disabled'}>+ Nova prova${S.ctx ? ' neste campeonato' : ' (escolha um campeonato)'}</option><option value="__set" ${S.ctx ? '' : 'disabled'}>⚙ Definições do campeonato</option>` : '');
   if (!S.ctx) $('#ctxSel').insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>');
+  ctxLabel();
   const c = S.ctx ? S.champs[ctxId()] : null;
   $('#clubName').textContent = c ? (S.clubs[c.clubId] || {}).name || '' : '';
 }
