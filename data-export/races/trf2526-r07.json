@@ -1,0 +1,60 @@
+{
+  "champ": "trf2526",
+  "date": "2026-05-30",
+  "event": "Regata dos Caracóis",
+  "finishes": [
+    {
+      "boatId": "too-much",
+      "finish": "12:36:19"
+    },
+    {
+      "boatId": "choque",
+      "finish": "12:41:20"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "12:41:46"
+    },
+    {
+      "boatId": "troton",
+      "finish": "12:44:00"
+    },
+    {
+      "boatId": "magano",
+      "finish": "12:44:17"
+    },
+    {
+      "boatId": "tita",
+      "finish": "12:54:49"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "12:55:48"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "12:55:56"
+    },
+    {
+      "boatId": "javali-sailing",
+      "code": "DNF",
+      "finish": ""
+    },
+    {
+      "boatId": "sambuca",
+      "code": "RET",
+      "finish": ""
+    },
+    {
+      "boatId": "berlenga",
+      "code": "DNF",
+      "finish": ""
+    }
+  ],
+  "n": 7,
+  "name": "Caracóis R1",
+  "start": "11:38:00",
+  "status": "final",
+  "system": "ToT_WL",
+  "timeLimit": "13:08:00"
+}

@@ -1,0 +1,65 @@
+{
+  "champ": "trf2526",
+  "date": "2026-06-20",
+  "event": "Memorial",
+  "finishes": [
+    {
+      "boatId": "too-much",
+      "finish": "14:09:17"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "14:15:06"
+    },
+    {
+      "boatId": "choque",
+      "finish": "14:16:18"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "14:30:23"
+    },
+    {
+      "boatId": "tita",
+      "finish": "14:34:17"
+    },
+    {
+      "boatId": "javali-sailing",
+      "finish": "14:34:45"
+    },
+    {
+      "boatId": "x-ufo",
+      "finish": "14:35:20"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "14:39:59"
+    },
+    {
+      "boatId": "troton",
+      "finish": "14:42:53"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "14:47:07"
+    },
+    {
+      "boatId": "navegantes",
+      "finish": "14:53:36"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "15:01:07"
+    },
+    {
+      "boatId": "ultramarine",
+      "finish": "15:07:46"
+    }
+  ],
+  "n": 9,
+  "name": "Memorial",
+  "start": "12:51:00",
+  "status": "final",
+  "system": "ToT_CL",
+  "timeLimit": ""
+}

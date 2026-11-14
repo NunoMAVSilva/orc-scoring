@@ -1,0 +1,28 @@
+{
+  "certs": [
+    {
+      "CDL": 9.856,
+      "ToD_CL": 567.1,
+      "ToT_CL": 1.0581,
+      "ToT_WL": 0.9337,
+      "from": "2025-06-05",
+      "kind": "orc",
+      "src": "ESP 2025 INT"
+    },
+    {
+      "CDL": 9.856,
+      "ToD_CL": 567.8,
+      "ToT_CL": 1.0567,
+      "ToT_WL": 0.9333,
+      "from": "2026-07-08",
+      "kind": "orc",
+      "src": "ESP 2026 INT"
+    }
+  ],
+  "club": "CNTavira",
+  "div": "B",
+  "name": "MAGANO",
+  "sail": "POL-77",
+  "skipper": "João Diniz",
+  "type": "MARINA 36 SPORT"
+}

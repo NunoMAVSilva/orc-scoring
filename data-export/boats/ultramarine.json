@@ -1,0 +1,17 @@
+{
+  "certs": [
+    {
+      "ToD_CL": 636.6,
+      "ToT_CL": 0.9425,
+      "from": "2025-01-01",
+      "kind": "manual",
+      "src": "manual"
+    }
+  ],
+  "club": "GCNFaro",
+  "div": "C",
+  "name": "ULTRAMARINE",
+  "sail": "",
+  "skipper": "Filipe Alexandre",
+  "type": "HANSE 341"
+}

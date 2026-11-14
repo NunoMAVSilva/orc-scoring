@@ -1,0 +1,28 @@
+{
+  "certs": [
+    {
+      "CDL": 10.423,
+      "ToD_CL": 591.2,
+      "ToT_CL": 1.0148,
+      "ToT_WL": 0.8856,
+      "from": "2025-01-01",
+      "kind": "copiado",
+      "src": "Voetsak AUS 2025"
+    },
+    {
+      "CDL": 10.423,
+      "ToD_CL": 592.6,
+      "ToT_CL": 1.0125,
+      "ToT_WL": 0.8832,
+      "from": "2026-06-22",
+      "kind": "copiado",
+      "src": "Voetsak AUS 2026"
+    }
+  ],
+  "club": "GCNFaro",
+  "div": "A",
+  "name": "SAMBUCA",
+  "sail": "",
+  "skipper": "José Guedes",
+  "type": "BENETEAU OCEANIS 461"
+}

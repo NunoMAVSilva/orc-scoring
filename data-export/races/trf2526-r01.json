@@ -1,0 +1,57 @@
+{
+  "champ": "trf2526",
+  "date": "2025-11-29",
+  "distance": null,
+  "event": "São Martinho",
+  "finishes": [
+    {
+      "boatId": "too-much",
+      "finish": "13:52:47"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "13:53:53"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "14:04:05"
+    },
+    {
+      "boatId": "tita",
+      "finish": "14:08:30"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "14:16:28"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "14:20:46"
+    },
+    {
+      "boatId": "free-bird",
+      "finish": "14:35:15"
+    },
+    {
+      "boatId": "troton",
+      "code": "RET",
+      "finish": ""
+    },
+    {
+      "boatId": "sambuca",
+      "code": "RET",
+      "finish": ""
+    },
+    {
+      "boatId": "jenny-iii",
+      "code": "RET",
+      "finish": ""
+    }
+  ],
+  "n": 1,
+  "name": "Regata de São Martinho",
+  "start": "10:50:00",
+  "status": "final",
+  "system": "ToT_CL",
+  "timeLimit": "15:20:00"
+}

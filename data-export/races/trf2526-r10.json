@@ -1,0 +1,71 @@
+{
+  "champ": "trf2526",
+  "date": "2026-09-05",
+  "event": "Cidade de Faro",
+  "finishes": [
+    {
+      "boatId": "magano",
+      "finish": "12:27:21"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "12:32:50"
+    },
+    {
+      "boatId": "troton",
+      "finish": "12:33:33"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "12:37:44"
+    },
+    {
+      "boatId": "choque",
+      "finish": "12:40:08"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "12:43:58"
+    },
+    {
+      "boatId": "stella-maris",
+      "finish": "12:45:09"
+    },
+    {
+      "boatId": "tita",
+      "finish": "12:45:10"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "12:47:33"
+    },
+    {
+      "boatId": "seita-too",
+      "finish": "12:53:52"
+    },
+    {
+      "boatId": "sula-too",
+      "finish": "12:54:17"
+    },
+    {
+      "boatId": "javali-sailing",
+      "finish": "13:04:35"
+    },
+    {
+      "boatId": "corto-maltese",
+      "code": "DNF",
+      "finish": ""
+    },
+    {
+      "boatId": "lpaz",
+      "code": "DNF",
+      "finish": ""
+    }
+  ],
+  "n": 10,
+  "name": "Cidade de Faro",
+  "start": "11:35:00",
+  "status": "final",
+  "system": "ToT_WL",
+  "timeLimit": "13:05:00"
+}

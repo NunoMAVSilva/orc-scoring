@@ -1,0 +1,18 @@
+{
+  "certs": [
+    {
+      "ToD_CL": 724.8,
+      "ToT_CL": 0.8278,
+      "ToT_WL": 0.7301,
+      "from": "2025-01-01",
+      "kind": "copiado",
+      "src": "Pallas NED 2021"
+    }
+  ],
+  "club": "GCNFaro",
+  "div": "C",
+  "name": "CORTO MALTESE",
+  "sail": "",
+  "skipper": "Carlos Ferrinho",
+  "type": "FEELING 286"
+}
