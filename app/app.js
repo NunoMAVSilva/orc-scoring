@@ -57,8 +57,8 @@ function isOpen(b, rules) { rules = rules || ctxRules(); return !!(rules && rule
 function divOf(b, rules) { rules = rules || ctxRules(); return isOpen(b, rules) ? 'OPEN' : E.divisionOf(b, '', dbState(), rules); }
 function groupsOf(rules) {
   const g = [{ k: 'GERAL', t: 'Geral' }];
+  if (rules && rules.openGroup) g.push({ k: 'ORC', t: 'Geral ORC' }, { k: 'OPEN', t: 'Geral ORC Open' });
   ((rules && rules.groups) || DEFAULT_RULES.groups).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d }));
-  if (rules && rules.openGroup) g.push({ k: 'OPEN', t: 'ORC Open' });
   ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name }));
   return g;
 }
@@ -67,6 +67,7 @@ function groupFilter(k, rules) {
   if (k.startsWith('DIV:')) { const d = k.slice(4); return b => divOf(b, rules) === d; }
   if (k.startsWith('CLS:')) { const c = k.slice(4); return b => b.classRef === c; }
   if (k === 'OPEN') return b => isOpen(b, rules);
+  if (k === 'ORC') return b => !isOpen(b, rules);
   return null;
 }
 const clubShort = id => (S.clubs[id] && (S.clubs[id].short || S.clubs[id].name)) || '';
