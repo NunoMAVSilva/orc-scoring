@@ -217,13 +217,14 @@ function eventStandings(eid, groupKey) {
   const opts = single ? { champ: rules } : { discards: 0 };
   return { rs, rules, st: E.seriesStandings(rs, dbState(), Object.assign(opts, { filter: groupFilter(groupKey, rules), boats: e.entries || [] })) };
 }
-function standingsTable(st, races, rules) {
+function standingsTable(st, races, rules, opts) {
+  opts = opts || {};
   if (!st.table.length || !races.length) return '<div class="empty">Sem resultados ainda.</div>';
   const head = races.map((r, i) => `<th class="n" title="${esc(r.name)}"><a href="#race-${esc(r.id)}">R${i + 1}</a></th>`).join('');
   const rows = st.table.map(r => {
     const b = S.boats[r.boatId] || {};
     const cells = r.cells.map(c => `<td class="n ${c.disc ? 'disc' : ''} ${c.code && !c.disc ? 'code' : ''}"><span>${c.code ? esc(c.code) + ' ' : ''}${ptsF(c.pts)}</span></td>`).join('');
-    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
+    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span>${opts.skipper && b.skipperId ? `<span class="sub">Skipper: ${esc(skipperName(b.skipperId))}</span>` : ''}</td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
   }).join('');
   return `<div class="scroll"><table><thead><tr><th class="sticky">#</th><th>Barco</th><th class="n">Líq.</th><th class="n">Total</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -709,12 +710,25 @@ function standingsText(st, races, title) {
   st.table.forEach(r => { t += String(r.rank).padEnd(3) + r.name.padEnd(19) + ptsF(r.net).padStart(4) + ptsF(r.total).padStart(5) + '  ' + r.cells.map(c => (c.disc ? '(' : '') + (c.code ? c.code + ' ' : '') + ptsF(c.pts) + (c.disc ? ')' : '')).join(' ') + '\n'; });
   return t;
 }
+function penaltyNote(st, rs, groupKey, rules) {
+  const f = groupFilter(groupKey, rules);
+  const per = [...new Set(rs.map(r => (r.entrants || []).filter(id => S.boats[id] && (!f || f(S.boats[id], id))).length + 1))];
+  return per.length === 1 && per[0] === st.dnc
+    ? `Penalizações (DNC, DNF, DNS, DSQ…): ${st.dnc} pontos`
+    : `DNC: ${st.dnc} pontos · DNF, DNS, DSQ…: inscritos da prova + 1${per.length === 1 ? ` (${per[0]} pontos)` : ''}`;
+}
 function standingsHTML() {
   const rules = ctxRules();
-  const blocks = groupsOf(rules).map(g => { const { st, rs } = ctxSeries(g.k); return st.table.length ? `<h2>${esc(g.t)}</h2>${standingsTable(st, rs, rules).replace(/<a [^>]*>|<\/a>/g, '')}<p>DNC = ${st.dnc} · ${st.nDiscards} descarte(s)</p>` : ''; }).join('');
+  const blocks = groupsOf(rules).map(g => { const { st, rs } = ctxSeries(g.k); return st.table.length ? `<h2>${esc(g.t)}</h2>${standingsTable(st, rs, rules, { skipper: true }).replace(/<a [^>]*>|<\/a>/g, '')}<p class="small muted">${penaltyNote(st, rs, g.k, rules)}</p>` : ''; }).join('');
+  const nd = E.nDiscards(rules, ctxSeries('GERAL').rs.length), now = new Date();
+  const club = (S.clubs[rules.clubId] || {}).name || '';
   const css = Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
   const n = ctxSeries('GERAL').rs.length;
-  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><title>${esc(ctxName())}</title><style>${css} body{padding:16px} .sticky{position:static}</style></head><body><h1>${esc(ctxName())}</h1><p>${n} regatas · gerado ${dPT(today())}</p>${blocks}</body></html>`;
+  const when = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} às ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctxName())}</title><style>${css} body{padding:16px} .sticky{position:static} .exp-head{margin-bottom:12px} .exp-head .club{font-size:1.05rem;color:var(--muted);margin-top:2px} footer{margin-top:24px;padding-top:10px;border-top:1px solid var(--line)}</style></head><body>
+<div class="exp-head"><h1>${esc(ctxName())}</h1>${club ? `<div class="club">${esc(club)}</div>` : ''}<p>${n} regata${n === 1 ? '' : 's'} · ${nd ? nd + ' descarte' + (nd > 1 ? 's' : '') : 'sem descartes'}</p></div>
+${blocks}
+<footer class="small muted">Publicado a ${when}</footer></body></html>`;
 }
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copiado.'); } catch (_) { dialog('Copiar', `<textarea rows="14" style="width:100%;font-family:monospace;font-size:12px">${esc(text)}</textarea>`); } }
 
