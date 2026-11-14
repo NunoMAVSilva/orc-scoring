@@ -12,8 +12,11 @@
 
   function secs(t) {
     if (t == null || t === '') return null;
-    const p = String(t).trim().replace(/[.,h]/g, ':').split(':').map(Number);
-    if (p.some(isNaN)) return null;
+    // separadores aceites: : . , h ou espaço; repetidos contam como um (ex.: "16:49::00")
+    const txt = String(t).trim().replace(/[.,h\s]+/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
+    if (!txt) return null;
+    const p = txt.split(':').map(Number);
+    if (p.some(isNaN) || p.length > 3) return null;
     while (p.length < 3) p.push(0);
     return p[0] * 3600 + p[1] * 60 + p[2];
   }
