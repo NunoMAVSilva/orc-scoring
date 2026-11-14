@@ -224,7 +224,7 @@ function standingsTable(st, races, rules, opts) {
   const rows = st.table.map(r => {
     const b = S.boats[r.boatId] || {};
     const cells = r.cells.map(c => `<td class="n ${c.disc ? 'disc' : ''} ${c.code && !c.disc ? 'code' : ''}"><span>${c.code ? esc(c.code) + ' ' : ''}${ptsF(c.pts)}</span></td>`).join('');
-    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span>${opts.skipper && b.skipperId ? `<span class="sub">Skipper: ${esc(skipperName(b.skipperId))}</span>` : ''}</td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
+    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span>${opts.skipper !== false && b.skipperId ? `<span class="sub">Skipper: ${esc(skipperName(b.skipperId))}</span>` : ''}</td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
   }).join('');
   return `<div class="scroll"><table><thead><tr><th class="sticky">#</th><th>Barco</th><th class="n">Líq.</th><th class="n">Total</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
