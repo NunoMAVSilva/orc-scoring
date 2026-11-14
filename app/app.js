@@ -14,6 +14,8 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const fmt4 = v => v == null || v === '' ? '—' : Number(v).toFixed(4).replace('.', ',');
 const fmt1 = v => v == null || v === '' ? '—' : Number(v).toFixed(1).replace('.', ',');
 const ptsF = p => (p % 1 ? p.toFixed(1) : String(p)).replace('.', ',');
+// hora normalizada hh:mm:ss (aceita 16.49.00, 16h49, 16:49::00…); devolve o texto original se não for uma hora válida
+const cleanTime = t => { const x = E.secs(t); return x == null ? t : [Math.floor(x / 3600), Math.floor(x % 3600 / 60), x % 60].map(n => String(n).padStart(2, '0')).join(':'); };
 const today = () => new Date().toISOString().slice(0, 10);
 const dPT = d => d ? d.split('-').reverse().join('/') : '';
 const slug = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('x' + Date.now());
@@ -325,7 +327,7 @@ function drawFinishEditor() {
   $('#dlgB').oninput = $('#dlgB').onchange = e => {
     const el = e.target; if (el.id === 'finStart') { S.edit.start = el.value.replace(/[.,h ]/g, ':'); return; } if (el.id === 'finDist') { S.edit.dist = el.value; return; } if (el.dataset.fi == null) return;
     const f = S.edit.rows[+el.dataset.fi]; f[el.dataset.k] = el.value;
-    if (el.dataset.k === 'finish') f.finish = el.value.replace(/[.,h ]/g, ':');
+    if (el.dataset.k === 'finish') f.finish = el.value.replace(/[.,h ]+/g, ':').replace(/:+/g, ':');
   };
 }
 
@@ -742,10 +744,10 @@ async function onClick(e) {
   else if (a === 'finDel') { S.edit.rows.splice(+t.dataset.i, 1); drawFinishEditor(); }
   else if (a === 'finCancel') closeDlg();
   else if (a === 'finSave') {
-    const rows = S.edit.rows.filter(r => r.boatId).map(r => { const o = { boatId: r.boatId }; if (r.code && r.code !== 'FIN') o.code = r.code; else o.finish = r.finish; if (r.code && r.code !== 'FIN' && r.finish) o.finish = r.finish; return o; });
+    const rows = S.edit.rows.filter(r => r.boatId).map(r => { const o = { boatId: r.boatId }; if (r.code && r.code !== 'FIN') o.code = r.code; else o.finish = cleanTime(r.finish); if (r.code && r.code !== 'FIN' && r.finish) o.finish = cleanTime(r.finish); return o; });
     const ids = rows.map(r => r.boatId); if (new Set(ids).size !== ids.length) { toast('Há barcos repetidos.'); return; }
     const bad = rows.find(r => !r.code && E.secs(r.finish) == null); if (bad) { toast('Falta a hora de ' + S.boats[bad.boatId].name + '.'); return; }
-    const st = (S.edit.start || '').trim();
+    const st = (S.edit.start || '').trim() ? cleanTime(S.edit.start.trim()) : '';
     if (st && E.secs(st) == null) { toast('Hora de largada inválida (hh:mm:ss).'); return; }
     const r = clone(S.races[S.edit.id]); r.finishes = rows; r.start = st;
     const isToD = String(r.system || '').startsWith('ToD'), dist = String(S.edit.dist || '').trim().replace(',', '.');
