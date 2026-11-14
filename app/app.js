@@ -236,7 +236,8 @@ function viewEvent(eid, single) {
     ${single ? '' : `<div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
       <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
       ${standingsTable(st, rs, rules)}</div>`}
-    <div class="small muted">${entries.length} inscritos${entries.length ? '' : ' — '}${entries.length ? ' · ' : ''}<a href="#frota" data-a="fleetGo">${S.canEdit ? 'gerir inscrições na Frota' : 'ver na Frota'}</a></div>`;
+    <div class="small muted">${entries.length} inscritos${entries.length ? '' : ' — '}${entries.length ? ' · ' : ''}<a href="#frota" data-a="fleetGo">${S.canEdit ? 'gerir inscrições na Frota' : 'ver na Frota'}</a></div>
+    ${(() => { const nc = entries.filter(([, b]) => !b.classRef && !E.certAt(b, e.dateFrom || today(), dbState())).length; return nc ? `<div class="warn">⚠ ${nc} inscrito${nc > 1 ? 's' : ''} sem certificado — <a href="#frota" data-a="fleetGo">resolver na Frota</a></div>` : ''; })()}`;
 }
 
 /* ---------- regata ---------- */
@@ -359,7 +360,10 @@ function viewFleetEntries(head) {
   const single = evs.length <= 1, ev = eid ? S.events[eid] : null;
   const ids = (ev ? ev.entries || [] : champEntries(cid)).filter(id => S.boats[id]);
   const q = norm(S.fleetQ || '');
-  const shown = ids.filter(id => { const b = S.boats[id]; return !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId) + clubShort(b.clubId) + (b.aka || []).join('')).includes(q); }).sort((a, b) => S.boats[a].name.localeCompare(S.boats[b].name));
+  const day0 = (ev && ev.dateFrom) || c.dateFrom || today();
+  const missing = ids.filter(id => !S.boats[id].classRef && !E.certAt(S.boats[id], day0, dbState())).sort((a, b) => S.boats[a].name.localeCompare(S.boats[b].name));
+  if (!missing.length) S.fleetNoCert = false;
+  const shown = ids.filter(id => { const b = S.boats[id]; if (S.fleetNoCert && !missing.includes(id)) return false; return !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId) + clubShort(b.clubId) + (b.aka || []).join('')).includes(q); }).sort((a, b) => S.boats[a].name.localeCompare(S.boats[b].name));
   const racedIds = new Set((eid ? eventRaces(eid) : champRaces(cid)).flatMap(r => (r.finishes || []).map(f => f.boatId)));
   const day = (ev && ev.dateFrom) || c.dateFrom || today();
   const target = eid ? `data-e="${esc(eid)}"` : single ? `data-c="${esc(cid)}"` : '';
@@ -371,9 +375,9 @@ function viewFleetEntries(head) {
       ${eid && ids.length ? `<button class="btn sm dang" data-a="entryDelAll" data-e="${esc(eid)}">Retirar todos</button>` : ''}</div>
     <div class="small muted">Importar: ficheiro com títulos Barco, Vela, Modelo, Skipper, Licença, Clube (só "Barco" é obrigatório).</div>`;
   const evTabs = evs.length > 1 ? `<div class="tabs">${evs.map(([k, e]) => `<button data-a="fleetEv" data-k="${esc(k)}" class="${S.fleetEv === k ? 'on' : ''}">${esc(e.name)} (${(e.entries || []).length})</button>`).join('')}<button data-a="fleetEv" data-k="all" class="${S.fleetEv === 'all' ? 'on' : ''}">Todas (${champEntries(cid).length})</button></div>` : '';
-  const noCert = ids.filter(id => !E.certAt(S.boats[id], day, dbState())).length;
+  const noCert = missing.length;
   return `<section><h1>Frota</h1><div class="muted">${esc(c.name)}${ev && !single ? ' · ' + esc(ev.name) : ''} · ${ids.length} inscritos${noCert ? ` · <span style="color:var(--flag-r)">${noCert} sem certificado</span>` : ''}</div></section>
-    ${head}${evTabs}${actions}
+    ${head}${evTabs}${noCert ? `<div class="warn row spread" style="align-items:center"><b>⚠ ${noCert} barco${noCert > 1 ? 's' : ''} sem certificado</b><div class="row">${S.fleetNoCert ? '<button class="btn sm" data-a="noCertFilter">Mostrar todos</button>' : '<button class="btn sm" data-a="noCertFilter">Ver só esses</button>'}${S.canEdit ? `<button class="btn sm pri" data-a="certQueue" data-ids="${esc(missing.join(','))}">Resolver um a um</button>` : ''}</div></div>` : ''}${actions}
     <input id="fleetQ" value="${esc(S.fleetQ || '')}" placeholder="Procurar inscrito" style="padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
     ${shown.length ? `<div class="scroll"><table><thead><tr><th>Barco · skipper · clube</th><th>Cert.</th>${S.canEdit ? '<th></th>' : ''}</tr></thead><tbody>${shown.map(id => entryRow(id, eid, rules, racedIds, day)).join('')}</tbody></table></div>`
       : `<div class="empty">${ids.length ? 'Nenhum inscrito corresponde à pesquisa.' : !single && !eid ? 'Ainda sem inscritos.' : 'Ainda sem inscritos. Importe a lista, escolha da base de dados ou crie um barco novo.'}</div>`}`;
@@ -534,7 +538,8 @@ function openCertForm(boatId, tab) {
      <div class="grid-f">${sel('dRef', 'Barco de referência', '', refs.map(([k, b]) => [k, b.name]))}${field('dTarget', 'ToT costeiro pretendido', '', 'inputmode="decimal"')}${field('dFrom', 'Válido a partir de', today(), 'type="date"')}</div>
      <button class="btn pri" data-a="certDeriv" data-b="${esc(boatId)}">Calcular e adicionar</button>`;
   }
-  dialog('Novo certificado · ' + S.boats[boatId].name, `<div class="tabs">${tabs.map(([k, t]) => `<button data-a="certTab" data-b="${esc(boatId)}" data-k="${k}" class="${k === tab ? 'on' : ''}">${t}</button>`).join('')}</div>${body}`);
+  const qd = S.certQueue && S.certQueue.ids[S.certQueue.i] === boatId ? S.certQueue : null;
+  dialog('Novo certificado · ' + S.boats[boatId].name, `${qd ? `<div class="info row spread" style="align-items:center"><span>Sem certificado: <b>${qd.i + 1} de ${qd.ids.length}</b> · ${esc(S.boats[boatId].type || 'modelo desconhecido')}${S.boats[boatId].sail ? ' · ' + esc(S.boats[boatId].sail) : ''}</span><span class="row"><button class="btn sm" data-a="certSkip">Saltar</button><button class="btn sm" data-a="certStop">Parar</button></span></div>` : ''}<div class="tabs">${tabs.map(([k, t]) => `<button data-a="certTab" data-b="${esc(boatId)}" data-k="${k}" class="${k === tab ? 'on' : ''}">${t}</button>`).join('')}</div>${body}`);
   if (tab === 'orc') loadCatalog().then(() => { const q = $('#catQ'); if (!q) return; q.value = S.boats[boatId].name; q.oninput = () => catSearch(boatId); catSearch(boatId); q.focus(); });
 }
 async function loadCatalog() {
@@ -580,10 +585,17 @@ function catLine(r) {
   return `<div class="title">${esc(r[0])} <span class="chip">${esc(r[3])}</span> <span class="chip">${r[4] === 'I' ? 'ORCi' : 'Club'}</span>${r[9] ? ' <span class="chip div-SB">SB</span>' : ''}</div>
     <div class="meta">${esc(r[1])} · ${esc(r[2])} · emitido ${dPT(r[5])}</div><div class="meta num">ToT cost. ${fmt4(r[7])} · b/s ${fmt4(r[8])} · GPH ${fmt1(r[11])} · CDL ${r[6]}</div>`;
 }
+// "Resolver um a um": percorre os barcos sem certificado; devolve true se abriu o seguinte.
+function certQueueNext(doneId) {
+  const q = S.certQueue; if (!q || (doneId && q.ids[q.i] !== doneId)) return false;
+  q.i++;
+  if (q.i >= q.ids.length) { S.certQueue = null; toast('Fim da lista de barcos sem certificado.'); return false; }
+  openCertForm(q.ids[q.i], 'orc'); return true;
+}
 async function addCert(boatId, cert) {
   const b = clone(S.boats[boatId]);
   b.certs = (b.certs || []).concat([cert]);
-  if (await save('boats', boatId, b)) { toast('Certificado adicionado.'); closeDlg(); }
+  if (await save('boats', boatId, b)) { toast('Certificado adicionado: ' + b.name + '.'); if (!certQueueNext(boatId)) closeDlg(); }
 }
 
 /* ---------- leitura da folha com o Claude ---------- */
@@ -667,6 +679,10 @@ async function onClick(e) {
   else if (a === 'egrp') { S.evGroup = t.dataset.k; render(); }
   else if (a === 'fleetTab') { S.fleetTab = t.dataset.k; render(); }
   else if (a === 'fleetGo') { S.fleetTab = 'champ'; location.hash = 'frota'; render(); }
+  else if (a === 'noCertFilter') { S.fleetNoCert = !S.fleetNoCert; render(); }
+  else if (a === 'certQueue') { const ids = (t.dataset.ids || '').split(',').filter(Boolean); if (!ids.length) return; S.certQueue = { ids, i: 0 }; openCertForm(ids[0], 'orc'); }
+  else if (a === 'certSkip') { if (!certQueueNext(S.certQueue && S.certQueue.ids[S.certQueue.i])) closeDlg(); }
+  else if (a === 'certStop') { S.certQueue = null; closeDlg(); }
   else if (a === 'fleetEv') { S.fleetEv = t.dataset.k; render(); }
   else if (a === 'newChamp') openChampForm(null);
   else if (a === 'editChamp') openChampForm(id);
@@ -942,7 +958,10 @@ async function doImport() {
     ids.push(bid);
   }
   const ev = clone(S.events[eid]); ev.entries = [...new Set((ev.entries || []).concat(ids))].sort();
-  if (await save('events', eid, ev)) { toast(ids.length + ' barco(s) inscritos.'); closeDlg(); }
+  if (await save('events', eid, ev)) {
+    const day = ev.dateFrom || today(), nc = ids.filter(b => S.boats[b] && !S.boats[b].classRef && !E.certAt(S.boats[b], day, dbState())).length;
+    toast(ids.length + ' barco(s) inscritos' + (nc ? ` · ⚠ ${nc} sem certificado — ver aviso na Frota.` : '.')); closeDlg(); S.fleetTab = 'champ'; location.hash = 'frota'; render();
+  }
 }
 document.addEventListener('change', async e => {
   if (e.target.id === 'impFile' && e.target.files[0]) { const f = e.target.files[0], d = e.target.dataset; e.target.value = ''; const eid = d.e || await ensureEvent(d.c); return eid && importEntries(f, eid); }
@@ -955,5 +974,5 @@ document.addEventListener('change', async e => {
     if (await save('races', id, r)) toast('Fotografia guardada.');
   } catch (err) { toast('Não foi possível guardar a foto (' + (err.code || err.message) + ').'); }
 });
-$('#dlg') && $('#dlg').addEventListener('close', () => { if (S.edit) { S.edit = null; render(); } });
+$('#dlg') && $('#dlg').addEventListener('close', () => { if (S.certQueue && !$('#dlg').open) setTimeout(() => { if (!$('#dlg').open) S.certQueue = null; }, 0); if (S.edit) { S.edit = null; render(); } });
 init();
