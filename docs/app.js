@@ -326,7 +326,7 @@ function viewFleet() {
     const cl = E.ratingAt(b, d, 'ToT_CL', dbState()), wl = E.ratingAt(b, d, 'ToT_WL', dbState());
     const k = cl ? cl.cert.kind || 'orc' : null;
     return `<a class="item" href="#boat-${esc(id)}"><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}${champMode ? ' · ' + evCount(id) + ' prova(s)' : ''}</div>
-      <div class="meta num">ToT costeiro ${fmt4(cl && cl.value)} · barl./sotav. ${fmt4(wl && wl.value)}</div></div>${k ? `<span class="chip k-${esc(k)}">${esc(k)}</span>` : '<span class="chip">sem rating</span>'}${!champMode && S.canEdit && cid ? enrollBtn(id, evCount(id)) : ''}</a>`;
+      <div class="meta num">ToT costeiro ${fmt4(cl && cl.value)} · barl./sotav. ${fmt4(wl && wl.value)}</div></div>${k ? `<span class="chip k-${esc(k)}">${esc(k)}</span>` : '<span class="chip">sem rating</span>'}${S.canEdit && cid ? (champMode ? `<button class="btn sm dang" data-a="unenroll" data-id="${esc(id)}">Retirar</button>` : enrollBtn(id, evCount(id))) : ''}</a>`;
   }).join('');
   const intro = champMode
     ? `<div class="small muted">${cid ? `Barcos inscritos em pelo menos uma prova de ${esc(S.champs[cid].name)}. Inscreva barcos em Regatas → Gerir inscrições, ou na Base de dados com o botão Inscrever.` : 'Escolha um campeonato no topo.'}</div>`
@@ -654,6 +654,14 @@ async function onClick(e) {
       return;
     }
     openEnroll(id);
+  }
+  else if (a === 'unenroll') {
+    const evs = champEvents(ctxId()).filter(([, e]) => (e.entries || []).includes(id));
+    const raced = eid => eventRaces(eid).some(r => (r.finishes || []).some(f => f.boatId === id));
+    if (evs.length !== 1) { openEnroll(id); return; }
+    if (raced(evs[0][0])) { toast('Este barco tem resultados nesta prova: não pode ser retirado.'); return; }
+    if (!confirmOnce('retirar?')) return;
+    if (await setEntry(evs[0][0], id, false)) { toast(S.boats[id].name + ' retirado (continua na base de dados).'); render(); }
   }
   else if (a === 'enrollSave') {
     let ok = true;
