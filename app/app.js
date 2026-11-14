@@ -351,10 +351,7 @@ function openChampForm(id) {
   const c = id ? S.champs[id] : Object.assign({ name: '', season: '', clubId: '' }, clone(DEFAULT_RULES));
   dialog(id ? 'Definições do campeonato' : 'Novo campeonato', `<div class="grid-f">${field('cName', 'Nome', c.name)}${field('cSeason', 'Época', c.season, 'placeholder="2026/27"')}${sel('cClub', 'Clube organizador', c.clubId, clubOpts())}
     ${rulesFields(c)}
-    ${id ? '' : `<label class="row small" style="margin-top:4px"><input type="checkbox" id="cSingle"> Prova única: criar já uma prova com o mesmo nome</label>
-    <div class="grid-f" id="cSingleF" hidden>${field('cFrom', 'Data de início', today(), 'type="date"')}${field('cTo', 'Data de fim', today(), 'type="date"')}${field('cVenue', 'Local', '', 'placeholder="ex.: Ria Formosa"')}</div>`}
     <div class="row spread">${delBtn('champDel', id, 'Apagar campeonato')}<button class="btn pri" data-a="champSave" data-id="${esc(id || '')}">Gravar</button></div>`);
-  if (!id) $('#cSingle').onchange = () => { $('#cSingleF').hidden = !$('#cSingle').checked; };
 }
 function openEventForm(id, champId) {
   champId = champId || ctxId();
@@ -555,15 +552,9 @@ async function onClick(e) {
     const c = Object.assign(id ? clone(S.champs[id]) : {}, { name: v('cName'), season: v('cSeason'), clubId: v('cClub') }, readRules());
     if (!c.name) { toast('O campeonato precisa de nome.'); return; }
     const cid = id || uniqueId('champs', slug(c.name + ' ' + c.season));
-    const single = !id && $('#cSingle') && $('#cSingle').checked;
-    if (single && (!v('cFrom') || (v('cTo') && v('cTo') < v('cFrom')))) { toast('Verifique as datas da prova.'); return; }
     if (!await save('champs', cid, c)) return;
     S.ctx = 'c:' + cid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {}
-    if (single) {
-      const eid = uniqueId('events', slug(c.name + ' ' + v('cFrom').slice(0, 4)));
-      if (await save('events', eid, { name: c.name, champ: cid, clubId: c.clubId, dateFrom: v('cFrom'), dateTo: v('cTo') || v('cFrom'), venue: v('cVenue'), entries: [] })) { closeDlg(); pickCtx(); location.hash = 'prova-' + eid; return; }
-    }
-    closeDlg(); pickCtx(); location.hash = 'provas'; render();
+    closeDlg(); pickCtx(); if (id) render(); else location.hash = 'provas';
   }
   else if (a === 'champDel') {
     if (champEvents(id).length) { toast('O campeonato tem provas: mova-as ou apague-as primeiro.'); return; }
