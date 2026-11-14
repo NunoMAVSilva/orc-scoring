@@ -10,10 +10,10 @@
       "src": "ALS GRE 2026"
     }
   ],
+  "clubId": "gcnfaro",
   "div": "A",
   "name": "STELLA MARIS",
   "sail": "8585",
-  "type": "DUFOUR 425 GL",
-  "clubId": "gcnfaro",
-  "skipperId": "miguel-galvao"
+  "skipperId": "miguel-galvao",
+  "type": "DUFOUR 425 GL"
 }

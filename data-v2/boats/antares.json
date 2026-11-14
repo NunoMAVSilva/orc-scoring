@@ -1,0 +1,22 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 8.507,
+      "GPH": 649.4,
+      "ToT_CL": 0.9509,
+      "ToT_WL": 0.8407,
+      "from": "2026-01-01",
+      "kind": "orc",
+      "ref": "03510004V96",
+      "src": "ANTARES ESP-6780_C ESP 2026 Club (DUFOUR 34)"
+    }
+  ],
+  "clubId": "cnsaladillo",
+  "div": "",
+  "name": "ANTARES",
+  "note": "",
+  "sail": "ESP 6780C",
+  "skipperId": "sam-genti",
+  "type": "Dufour 34"
+}

@@ -10,10 +10,10 @@
       "src": "POR 2026"
     }
   ],
+  "clubId": "cvlagos",
   "div": "C",
   "name": "SULA-TOO",
   "sail": "GBR 6831T",
-  "type": "ELAN 333",
-  "clubId": "cvlagos",
-  "skipperId": "paul-kent"
+  "skipperId": "paul-kent",
+  "type": "ELAN 333"
 }

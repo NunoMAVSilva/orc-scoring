@@ -1,5 +1,6 @@
 {
   "date": "2026-01-17",
+  "event": "trf2526-regata-aniversario-gcnf",
   "finishes": [
     {
       "boatId": "paquito",
@@ -47,6 +48,5 @@
   "start": "11:40:00",
   "status": "final",
   "system": "ToT_WL",
-  "timeLimit": "",
-  "event": "trf2526-regata-aniversario-gcnf"
+  "timeLimit": ""
 }

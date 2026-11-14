@@ -1,0 +1,23 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 6.35,
+      "GPH": 770.9,
+      "ToD_CL": 742.3,
+      "ToT_CL": 0.8083,
+      "ToT_WL": 0.7141,
+      "from": "2026-01-01",
+      "kind": "copiado",
+      "ref": "03520004I28",
+      "src": "copiado de CALLE STRÖMER GER 7131 GER 2026 Club (Ohlson 8:8) · Sailor Services"
+    }
+  ],
+  "clubId": "cvlagos",
+  "div": "",
+  "name": "PARDELA",
+  "note": "",
+  "sail": "",
+  "skipperId": "rodrigo-rocha",
+  "type": "Ohlson 8.8"
+}

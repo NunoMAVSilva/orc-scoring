@@ -8,10 +8,10 @@
       "src": "manual"
     }
   ],
+  "clubId": "gnolhao",
   "div": "C",
   "name": "NAVEGANTES",
   "sail": "",
-  "type": "SAILMAR 670",
-  "clubId": "gnolhao",
-  "skipperId": "goncalo-mestre"
+  "skipperId": "goncalo-mestre",
+  "type": "SAILMAR 670"
 }

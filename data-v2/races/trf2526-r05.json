@@ -1,6 +1,7 @@
 {
   "date": "2026-02-28",
   "distance": 11,
+  "event": "trf2526-timoneiras",
   "finishes": [
     {
       "boatId": "paquito",
@@ -40,6 +41,5 @@
   "start": "11:25:00",
   "status": "final",
   "system": "ToD_CL",
-  "timeLimit": "15:25:00",
-  "event": "trf2526-timoneiras"
+  "timeLimit": "15:25:00"
 }

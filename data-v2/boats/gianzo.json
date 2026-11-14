@@ -1,0 +1,22 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 10.065,
+      "GPH": 603.6,
+      "ToT_CL": 1.028,
+      "ToT_WL": 0.9123,
+      "from": "2026-01-01",
+      "kind": "orc",
+      "ref": "03530004BE9",
+      "src": "GIANZO POR 8155 POR 2026 Club (GRAND SOLEIL 40R)"
+    }
+  ],
+  "clubId": "anlisboa",
+  "div": "",
+  "name": "GIANZO",
+  "note": "",
+  "sail": "POR 8155",
+  "skipperId": "joao-tiago-silveira",
+  "type": "Grand Soleil 40R"
+}

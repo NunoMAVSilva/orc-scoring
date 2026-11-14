@@ -1,5 +1,6 @@
 {
   "date": "2026-05-30",
+  "event": "trf2526-regata-dos-caracois",
   "finishes": [
     {
       "boatId": "too-much",
@@ -52,6 +53,5 @@
   "start": "13:45:00",
   "status": "final",
   "system": "ToT_WL",
-  "timeLimit": "15:15:00",
-  "event": "trf2526-regata-dos-caracois"
+  "timeLimit": "15:15:00"
 }

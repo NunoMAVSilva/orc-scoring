@@ -19,10 +19,10 @@
       "src": "Voetsak AUS 2026"
     }
   ],
+  "clubId": "gcnfaro",
   "div": "A",
   "name": "SAMBUCA",
   "sail": "",
-  "type": "BENETEAU OCEANIS 461",
-  "clubId": "gcnfaro",
-  "skipperId": "jose-guedes"
+  "skipperId": "jose-guedes",
+  "type": "BENETEAU OCEANIS 461"
 }

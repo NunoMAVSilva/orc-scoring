@@ -1,0 +1,23 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 10.075,
+      "GPH": 593.1,
+      "ToD_CL": 576.6,
+      "ToT_CL": 1.0406,
+      "ToT_WL": 0.922,
+      "from": "2023-01-01",
+      "kind": "orc",
+      "ref": "03510002C0T",
+      "src": "KAOS PRIMERO ESP-4919 ESP 2023 ORCi · Sailor Services"
+    }
+  ],
+  "clubId": "rcmtpumbria",
+  "div": "",
+  "name": "KAOS PRIMERO",
+  "note": "",
+  "sail": "ESP 4919",
+  "skipperId": "ignacio-palacios",
+  "type": "Beneteau First 40.7"
+}

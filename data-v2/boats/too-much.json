@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 7.522,
@@ -19,10 +20,11 @@
       "src": "POR 2026"
     }
   ],
+  "clubId": "gcnfaro",
   "div": "SB",
   "name": "TOO MUCH",
+  "note": "",
   "sail": "POR 8630",
-  "type": "CORK 1720",
-  "clubId": "gcnfaro",
-  "skipperId": "nuno-valadas-da-silva"
+  "skipperId": "joana-cassiano",
+  "type": "CORK 1720"
 }

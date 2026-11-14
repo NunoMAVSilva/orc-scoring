@@ -1,6 +1,7 @@
 {
   "date": "2026-03-28",
   "distance": null,
+  "event": "trf2526-gp-hangares",
   "finishes": [
     {
       "boatId": "too-much",
@@ -64,6 +65,5 @@
   "start": "11:10:00",
   "status": "final",
   "system": "ToT_CL",
-  "timeLimit": "15:40:00",
-  "event": "trf2526-gp-hangares"
+  "timeLimit": "15:40:00"
 }

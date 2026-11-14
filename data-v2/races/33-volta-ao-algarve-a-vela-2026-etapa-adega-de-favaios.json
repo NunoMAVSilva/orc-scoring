@@ -1,0 +1,112 @@
+{
+  "date": "2026-07-26",
+  "distance": 13.7,
+  "event": "33-volta-ao-algarve-a-vela-2026",
+  "finishes": [
+    {
+      "boatId": "firefly",
+      "finish": "14:35:00"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "14:42:40"
+    },
+    {
+      "boatId": "corsario-do-arade",
+      "finish": "14:42:57"
+    },
+    {
+      "boatId": "magano",
+      "finish": "14:44:23"
+    },
+    {
+      "boatId": "gianzo",
+      "finish": "14:50:02"
+    },
+    {
+      "boatId": "tita",
+      "finish": "14:50:32"
+    },
+    {
+      "boatId": "antares",
+      "finish": "14:51:44"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "14:55:57"
+    },
+    {
+      "boatId": "choque",
+      "finish": "14:56:35"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "15:00:07"
+    },
+    {
+      "boatId": "troton",
+      "finish": "15:03:03"
+    },
+    {
+      "boatId": "kaos-primero",
+      "finish": "15:09:55"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "15:19:15"
+    },
+    {
+      "boatId": "sula-too",
+      "finish": "15:29:28"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "15:29:35"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "15:33:26"
+    },
+    {
+      "boatId": "dark-n-stormy",
+      "finish": "15:41:46"
+    },
+    {
+      "boatId": "javali-sailing",
+      "finish": "15:44:44"
+    },
+    {
+      "boatId": "l-auberge",
+      "finish": "15:55:09"
+    },
+    {
+      "boatId": "pyxis",
+      "finish": "16:10:47"
+    },
+    {
+      "boatId": "pakalma",
+      "finish": "16:35:50"
+    },
+    {
+      "boatId": "pardela",
+      "code": "DNS"
+    },
+    {
+      "boatId": "stella-maris",
+      "code": "DNS"
+    },
+    {
+      "boatId": "vvlva",
+      "code": "DNS"
+    }
+  ],
+  "name": "Etapa ADEGA DE FAVAIOS",
+  "photos": [
+    "db57c504e44fa4daf9ea3335aa351f04"
+  ],
+  "start": "12:00:00",
+  "status": "provisoria",
+  "system": "ToD_CL",
+  "timeLimit": "",
+  "timeLimitDur": "6:30"
+}

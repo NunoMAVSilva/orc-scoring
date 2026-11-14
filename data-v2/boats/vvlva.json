@@ -1,0 +1,23 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 7.411,
+      "GPH": 697.5,
+      "ToD_CL": 674.9,
+      "ToT_CL": 0.889,
+      "ToT_WL": 0.7932,
+      "from": "2026-01-01",
+      "kind": "copiado",
+      "ref": "03420004IUQ",
+      "src": "copiado de GALAZIOS ANEMOS GRE-49518 GRE 2026 Club (Feeling 920) · Sailor Services"
+    }
+  ],
+  "clubId": "gcnfaro",
+  "div": "",
+  "name": "VVLVA",
+  "note": "",
+  "sail": "",
+  "skipperId": "miguel-bexiga",
+  "type": "Kirié Feeling 920"
+}

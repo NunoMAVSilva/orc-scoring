@@ -1,0 +1,23 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 8.927,
+      "GPH": 650.1,
+      "ToD_CL": 629,
+      "ToT_CL": 0.954,
+      "ToT_WL": 0.836,
+      "from": "2026-01-01",
+      "kind": "copiado",
+      "ref": "0302000507V",
+      "src": "copiado de IONI S69 AUS 2026 Club (Sun Odyssey 36i) · Sailor Services"
+    }
+  ],
+  "clubId": "cvlagos",
+  "div": "",
+  "name": "DARK N STORMY",
+  "note": "",
+  "sail": "",
+  "skipperId": "michael-galloway",
+  "type": "Jeanneau 36i"
+}

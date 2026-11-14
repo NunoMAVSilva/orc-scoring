@@ -1,0 +1,22 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 9.096,
+      "GPH": 568.8,
+      "ToT_CL": 1.0823,
+      "ToT_WL": 0.9517,
+      "from": "2026-01-01",
+      "kind": "orc",
+      "ref": "03530004O02",
+      "src": "CORSÁRIO DO ARADE POR 2011 POR 2026 Club (COMUZZIi C32)"
+    }
+  ],
+  "clubId": "vsolidaria",
+  "div": "",
+  "name": "CORSÁRIO DO ARADE",
+  "note": "",
+  "sail": "POR 2011",
+  "skipperId": "luis-brito",
+  "type": "Commuzi C32"
+}

@@ -10,11 +10,11 @@
       "src": "Chance SUI 2019"
     }
   ],
+  "clubId": "gcnfaro",
   "div": "C",
   "name": "X-UFO",
   "note": "Helium 7.65 é sportboat - mantido em C por decisão (rever)",
   "sail": "",
-  "type": "HELIUM 7.65",
-  "clubId": "gcnfaro",
-  "skipperId": "pedro-rodrigues"
+  "skipperId": "pedro-rodrigues",
+  "type": "HELIUM 7.65"
 }

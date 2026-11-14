@@ -19,10 +19,10 @@
       "src": "ESP 2026 INT"
     }
   ],
+  "clubId": "cntavira",
   "div": "B",
   "name": "MAGANO",
   "sail": "POL-77",
-  "type": "MARINA 36 SPORT",
-  "clubId": "cntavira",
-  "skipperId": "joao-diniz"
+  "skipperId": "joao-diniz",
+  "type": "MARINA 36 SPORT"
 }

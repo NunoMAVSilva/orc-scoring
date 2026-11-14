@@ -1,5 +1,6 @@
 {
   "date": "2026-06-20",
+  "event": "trf2526-memorial",
   "finishes": [
     {
       "boatId": "too-much",
@@ -58,6 +59,5 @@
   "start": "12:51:00",
   "status": "final",
   "system": "ToT_CL",
-  "timeLimit": "",
-  "event": "trf2526-memorial"
+  "timeLimit": ""
 }

@@ -1,0 +1,23 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 6.35,
+      "GPH": 776.3,
+      "ToD_CL": 750.3,
+      "ToT_CL": 0.7997,
+      "ToT_WL": 0.6993,
+      "from": "2026-01-01",
+      "kind": "copiado",
+      "ref": "03420004VJJ",
+      "src": "copiado de BO GBR-5262 GRE 2026 Club (Rival 34) · Sailor Services"
+    }
+  ],
+  "clubId": "gcnfaro",
+  "div": "",
+  "name": "PAKALMA",
+  "note": "",
+  "sail": "POR 24",
+  "skipperId": "paulo-girao",
+  "type": "Rival 34"
+}

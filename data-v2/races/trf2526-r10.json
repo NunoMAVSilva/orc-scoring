@@ -1,5 +1,6 @@
 {
   "date": "2026-09-05",
+  "event": "trf2526-cidade-de-faro",
   "finishes": [
     {
       "boatId": "magano",
@@ -64,6 +65,5 @@
   "start": "11:35:00",
   "status": "final",
   "system": "ToT_WL",
-  "timeLimit": "13:05:00",
-  "event": "trf2526-cidade-de-faro"
+  "timeLimit": "13:05:00"
 }

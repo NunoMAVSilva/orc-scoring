@@ -1,0 +1,35 @@
+{
+  "classGroups": [
+    "platu25"
+  ],
+  "clubId": "gcnfaro",
+  "dateFrom": "2026-07-23",
+  "dateTo": "2026-07-26",
+  "discards": [
+    {
+      "n": 0,
+      "upTo": 3
+    },
+    {
+      "n": 1,
+      "upTo": 8
+    },
+    {
+      "n": 2,
+      "upTo": 999
+    }
+  ],
+  "divLimits": {
+    "A": 9.9,
+    "B": 8.8
+  },
+  "groups": [
+    "A",
+    "B",
+    "C",
+    "SB"
+  ],
+  "name": "33ª Volta ao Algarve à Vela 2026",
+  "openGroup": true,
+  "season": ""
+}

@@ -1,10 +1,8 @@
 {
-  "name": "Regata Aniversário GCNF",
   "champ": "trf2526",
   "clubId": "gcnfaro",
   "dateFrom": "2026-01-17",
   "dateTo": "2026-01-17",
-  "venue": "",
   "entries": [
     "cidade-de-faro",
     "impulsive",
@@ -16,5 +14,7 @@
     "too-much",
     "troton",
     "x-ufo"
-  ]
+  ],
+  "name": "Regata Aniversário GCNF",
+  "venue": ""
 }

@@ -19,10 +19,10 @@
       "src": "POR 2026"
     }
   ],
+  "clubId": "gcnfaro",
   "div": "B",
   "name": "CIDADE DE FARO",
   "sail": "POR 1372",
-  "type": "JOD 35",
-  "clubId": "gcnfaro",
-  "skipperId": "carlos-oliveira"
+  "skipperId": "carlos-oliveira",
+  "type": "JOD 35"
 }

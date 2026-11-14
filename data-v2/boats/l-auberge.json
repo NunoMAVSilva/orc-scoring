@@ -1,0 +1,23 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 10.369,
+      "GPH": 614,
+      "ToD_CL": 592.7,
+      "ToT_CL": 1.0123,
+      "ToT_WL": 0.886,
+      "from": "2026-01-01",
+      "kind": "copiado",
+      "ref": "03190004U0Q",
+      "src": "copiado de MIZZICA ITA-MIZZI ITA 2026 Club (Oceanis 43) · Sailor Services"
+    }
+  ],
+  "clubId": "gcnfaro",
+  "div": "",
+  "name": "L'AUBERGE",
+  "note": "",
+  "sail": "2",
+  "skipperId": "daniel-morgado",
+  "type": "Beneteau Oceanis 43"
+}

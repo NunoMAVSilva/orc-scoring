@@ -1,10 +1,8 @@
 {
-  "name": "Cidade de Faro",
   "champ": "trf2526",
   "clubId": "gcnfaro",
   "dateFrom": "2026-09-05",
   "dateTo": "2026-09-05",
-  "venue": "",
   "entries": [
     "choque",
     "cidade-de-faro",
@@ -20,5 +18,7 @@
     "tita",
     "too-much",
     "troton"
-  ]
+  ],
+  "name": "Cidade de Faro",
+  "venue": ""
 }

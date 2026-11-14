@@ -10,10 +10,10 @@
       "src": "Mowett ESP 2026"
     }
   ],
+  "clubId": "gnolhao",
   "div": "B",
   "name": "STª TERESINHA",
   "sail": "POR 1524",
-  "type": "OCEANIS 411",
-  "clubId": "gnolhao",
-  "skipperId": "joao-ferro"
+  "skipperId": "joao-ferro",
+  "type": "OCEANIS 411"
 }

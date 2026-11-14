@@ -1,0 +1,112 @@
+{
+  "date": "2026-07-24",
+  "distance": 20.6,
+  "event": "33-volta-ao-algarve-a-vela-2026",
+  "finishes": [
+    {
+      "boatId": "firefly",
+      "finish": "16:13:40"
+    },
+    {
+      "boatId": "magano",
+      "finish": "16:14:40"
+    },
+    {
+      "boatId": "gianzo",
+      "finish": "16:21:29"
+    },
+    {
+      "boatId": "stella-maris",
+      "finish": "16:27:30"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "16:27:40"
+    },
+    {
+      "boatId": "tita",
+      "finish": "16:31:15"
+    },
+    {
+      "boatId": "corsario-do-arade",
+      "finish": "16:33:42"
+    },
+    {
+      "boatId": "antares",
+      "finish": "16:39:31"
+    },
+    {
+      "boatId": "kaos-primero",
+      "finish": "16:40:15"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "16:41:47"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "16:43:00"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "16:48:39"
+    },
+    {
+      "boatId": "choque",
+      "finish": "16:52:15"
+    },
+    {
+      "boatId": "troton",
+      "finish": "17:07:20"
+    },
+    {
+      "boatId": "sula-too",
+      "finish": "17:12:35"
+    },
+    {
+      "boatId": "javali-sailing",
+      "finish": "17:20:29"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "17:21:07"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "17:29:36"
+    },
+    {
+      "boatId": "dark-n-stormy",
+      "finish": "17:48:32"
+    },
+    {
+      "boatId": "l-auberge",
+      "finish": "17:50:10"
+    },
+    {
+      "boatId": "pakalma",
+      "code": "DNF"
+    },
+    {
+      "boatId": "pyxis",
+      "code": "DNF"
+    },
+    {
+      "boatId": "pardela",
+      "code": "DNF"
+    },
+    {
+      "boatId": "vvlva",
+      "code": "DNF"
+    }
+  ],
+  "name": "Etapa SALT&SEA",
+  "photos": [
+    "e0e2a5a35c6a30dbf4351d8fa24257d8"
+  ],
+  "start": "12:45:00",
+  "status": "provisoria",
+  "system": "ToD_CL",
+  "timeLimit": "",
+  "timeLimitDur": "6:30"
+}

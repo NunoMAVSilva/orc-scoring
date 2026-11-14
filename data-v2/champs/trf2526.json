@@ -2,6 +2,9 @@
   "classGroups": [
     "platu25"
   ],
+  "clubId": "gcnfaro",
+  "dateFrom": "2025-11-29",
+  "dateTo": "2026-09-05",
   "discards": [
     {
       "n": 0,
@@ -27,8 +30,5 @@
     "SB"
   ],
   "name": "Troféu Ria Formosa 2025/2026",
-  "season": "2025/26",
-  "clubId": "gcnfaro",
-  "dateFrom": "2025-11-29",
-  "dateTo": "2026-09-05"
+  "season": "2025/26"
 }

@@ -1,0 +1,112 @@
+{
+  "date": "2026-07-23",
+  "distance": 14.27,
+  "event": "33-volta-ao-algarve-a-vela-2026",
+  "finishes": [
+    {
+      "boatId": "firefly",
+      "finish": "16:18:36"
+    },
+    {
+      "boatId": "magano",
+      "finish": "16:26:30"
+    },
+    {
+      "boatId": "corsario-do-arade",
+      "finish": "16:30:02"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "16:34:17"
+    },
+    {
+      "boatId": "tita",
+      "finish": "16:35:04"
+    },
+    {
+      "boatId": "gianzo",
+      "finish": "16:39:40"
+    },
+    {
+      "boatId": "antares",
+      "finish": "16:42:13"
+    },
+    {
+      "boatId": "choque",
+      "finish": "16:45:14"
+    },
+    {
+      "boatId": "kaos-primero",
+      "finish": "16:45:19"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "16:45:50"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "16:49:00"
+    },
+    {
+      "boatId": "troton",
+      "finish": "16:51:42"
+    },
+    {
+      "boatId": "stella-maris",
+      "finish": "16:58:22"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "17:01:03"
+    },
+    {
+      "boatId": "sula-too",
+      "finish": "17:08:53"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "17:13:29"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "17:19:09"
+    },
+    {
+      "boatId": "javali-sailing",
+      "finish": "17:33:21"
+    },
+    {
+      "boatId": "dark-n-stormy",
+      "finish": "17:47:45"
+    },
+    {
+      "boatId": "l-auberge",
+      "finish": "18:25:25"
+    },
+    {
+      "boatId": "vvlva",
+      "code": "DNF"
+    },
+    {
+      "boatId": "pakalma",
+      "code": "DNF"
+    },
+    {
+      "boatId": "pardela",
+      "code": "DNF"
+    },
+    {
+      "boatId": "pyxis",
+      "code": "DNF"
+    }
+  ],
+  "name": "Etapa HEINEKEN",
+  "photos": [
+    "dbd6f3ecf56eb3bc2a0dbe093ec20d7d"
+  ],
+  "start": "13:05:00",
+  "status": "provisoria",
+  "system": "ToD_CL",
+  "timeLimit": "",
+  "timeLimitDur": "5:30"
+}

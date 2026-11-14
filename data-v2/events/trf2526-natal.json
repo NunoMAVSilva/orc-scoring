@@ -1,10 +1,8 @@
 {
-  "name": "Natal",
   "champ": "trf2526",
   "clubId": "gcnfaro",
   "dateFrom": "2025-12-13",
   "dateTo": "2025-12-13",
-  "venue": "",
   "entries": [
     "cidade-de-faro",
     "free-bird",
@@ -16,5 +14,7 @@
     "tita",
     "too-much",
     "troton"
-  ]
+  ],
+  "name": "Natal",
+  "venue": ""
 }

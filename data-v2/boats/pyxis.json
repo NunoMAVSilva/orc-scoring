@@ -1,0 +1,24 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 6.137,
+      "GPH": 810.4,
+      "ToD_CL": 792.6,
+      "ToD_WL": 904.1,
+      "ToT_CL": 0.757,
+      "ToT_WL": 0.6636,
+      "from": "2018-01-01",
+      "kind": "copiado",
+      "ref": "GRE01009262",
+      "src": "copiado de IASONAS GRE-846 GRE 2018 Club (Moody 29) · Sailor Services · ToT b/s convertido para a escala atual (600 ÷ 904,1; impresso 0,7466)"
+    }
+  ],
+  "clubId": "cvlagos",
+  "div": "",
+  "name": "PYXIS",
+  "note": "",
+  "sail": "",
+  "skipperId": "arthur",
+  "type": "Moody 29"
+}

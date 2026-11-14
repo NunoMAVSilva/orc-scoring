@@ -1,0 +1,23 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 9.436,
+      "GPH": 606.3,
+      "ToD_CL": 587.8,
+      "ToT_CL": 1.0207,
+      "ToT_WL": 0.9104,
+      "from": "2026-01-01",
+      "kind": "orc",
+      "ref": "03860004TD1",
+      "src": "Firefly GBR 3550L GBR 2026 Club (X-35 OD) · Sailor Services"
+    }
+  ],
+  "clubId": "cvlagos",
+  "div": "",
+  "name": "FIREFLY",
+  "note": "",
+  "sail": "GBR 3550L",
+  "skipperId": "rob-clark",
+  "type": "X-35"
+}
