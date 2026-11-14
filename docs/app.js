@@ -76,6 +76,26 @@ function groupFilter(k, rules) {
 }
 const clubShort = id => (S.clubs[id] && (S.clubs[id].short || S.clubs[id].name)) || '';
 const skipperName = id => (S.skippers[id] && S.skippers[id].name) || '';
+/* Ícone do clube: logótipo (imagem guardada no clube) ou, se não houver, quadrado com as iniciais numa cor fixa. */
+function clubInitials(c) {
+  const s = (c.short || c.name || '').trim(), caps = s.replace(/[^A-ZÀ-Ý]/g, '');
+  if (caps.length >= 2) return caps.slice(0, 3);
+  return s.split(/\s+/).filter(w => w.length > 2).map(w => w[0]).join('').toUpperCase().slice(0, 3) || s.slice(0, 2).toUpperCase();
+}
+function clubIcon(clubId, big) {
+  const c = S.clubs[clubId]; if (!c) return '';
+  const cls = 'clogo' + (big ? ' big' : ''), t = esc(c.name || c.short || '');
+  if (c.logo) return `<img class="${cls}" src="${esc(c.logo)}" alt="" title="${t}">`;
+  let h = 0; for (const ch of String(clubId)) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return `<span class="${cls} mono" style="background:hsl(${h} 55% 38%)" title="${t}" aria-hidden="true">${esc(clubInitials(c))}</span>`;
+}
+// reduz a imagem escolhida a um ícone PNG (96 px, com transparência) guardado como data URL
+async function logoDataUrl(file) {
+  const img = await createImageBitmap(file), k = Math.min(1, 96 / Math.max(img.width, img.height));
+  const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(img.width * k)); cv.height = Math.max(1, Math.round(img.height * k));
+  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  return cv.toDataURL('image/png');
+}
 function boatSub(b) { return [b.sail, b.type, clubShort(b.clubId)].filter(Boolean).join(' · '); }
 function divChip(b, rules) { const d = divOf(b, rules); return `<span class="chip div-${esc(d)}">${d === 'OPEN' ? 'Open' : esc(d)}</span>`; }
 function evDates(e) { return e.dateFrom && e.dateTo && e.dateTo !== e.dateFrom ? `${dPT(e.dateFrom)} a ${dPT(e.dateTo)}` : dPT(e.dateFrom); }
@@ -203,7 +223,7 @@ function standingsTable(st, races, rules) {
   const rows = st.table.map(r => {
     const b = S.boats[r.boatId] || {};
     const cells = r.cells.map(c => `<td class="n ${c.disc ? 'disc' : ''} ${c.code && !c.disc ? 'code' : ''}"><span>${c.code ? esc(c.code) + ' ' : ''}${ptsF(c.pts)}</span></td>`).join('');
-    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat"><a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
+    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
   }).join('');
   return `<div class="scroll"><table><thead><tr><th class="sticky">#</th><th>Barco</th><th class="n">Líq.</th><th class="n">Total</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -283,9 +303,9 @@ function viewRace(id) {
   const isToD = race.system.startsWith('ToD');
   const tr = rows.map(x => {
     const b = S.boats[x.boatId] || {};
-    if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a ${pendingWhat})</td></tr>`;
-    if (x.code) return `<tr><td class="pos">—</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
-    return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
+    if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a ${pendingWhat})</td></tr>`;
+    if (x.code) return `<tr><td class="pos">—</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
+    return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
       <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
   }).join('');
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
@@ -349,7 +369,7 @@ function viewFleet() {
   if (t === 'clubs') {
     const list = Object.entries(S.clubs).sort(byName).map(([id, c]) => {
       const nb = Object.values(S.boats).filter(b => b.clubId === id).length;
-      return `<div class="item"><div class="grow"><div class="title">${esc(c.name)}</div><div class="meta">${esc(c.short || '')} · ${nb} barco(s)</div></div>${S.canEdit ? `<button class="btn sm" data-a="editClub" data-id="${esc(id)}">Editar</button>` : ''}</div>`;
+      return `<div class="item">${clubIcon(id, true)}<div class="grow"><div class="title">${esc(c.name)}</div><div class="meta">${esc(c.short || '')} · ${nb} barco(s)</div></div>${S.canEdit ? `<button class="btn sm" data-a="editClub" data-id="${esc(id)}">Editar</button>` : ''}</div>`;
     }).join('');
     return `<section class="row spread"><h1>Clubes</h1>${S.canEdit ? '<button class="btn pri" data-a="newClub">+ Novo clube</button>' : ''}</section>${head}<div class="list">${list || '<div class="empty">Sem clubes.</div>'}</div>`;
   }
@@ -378,7 +398,7 @@ function viewFleet() {
 function entryRow(id, eid, rules, racedIds, day) {
   const b = S.boats[id];
   const del = !S.canEdit ? '' : `<td>${eid ? (racedIds.has(id) ? '<span class="small muted" title="Tem resultados nesta prova">—</span>' : `<button class="x btn sm dang" data-a="entryDel" data-e="${esc(eid)}" data-id="${esc(id)}" aria-label="Retirar ${esc(b.name)}" title="Retirar da prova">×</button>`) : `<button class="btn sm dang" data-a="unenroll" data-id="${esc(id)}">Retirar</button>`}</td>`;
-  return `<tr><td class="boat"><a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span><span class="sub">${esc([skipperName(b.skipperId), clubShort(b.clubId)].filter(Boolean).join(' · ') || 'sem skipper')}</span></td><td>${E.certAt(b, day, dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td>${del}</tr>`;
+  return `<tr><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span><span class="sub">${esc([skipperName(b.skipperId), clubShort(b.clubId)].filter(Boolean).join(' · ') || 'sem skipper')}</span></td><td>${E.certAt(b, day, dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td>${del}</tr>`;
 }
 function viewFleetEntries(head) {
   if (!S.ctx) return `<section><h1>Frota</h1></section>${head}<div class="empty">Escolha ou crie um campeonato no topo.</div>`;
@@ -548,7 +568,12 @@ function openSkipperForm(id) {
 }
 function openClubForm(id) {
   const c = id ? S.clubs[id] : { name: '', short: '' };
+  S.edit = { kind: 'club', logo: c.logo || '' };
   dialog(id ? 'Editar clube' : 'Novo clube', `<div class="grid-f">${field('clName', 'Nome completo', c.name, 'placeholder="ex.: Clube Naval de Tavira"')}${field('clShort', 'Sigla', c.short, 'placeholder="ex.: CNTavira"')}</div>
+    <div class="row" style="align-items:center"><span id="clLogoPrev">${c.logo ? `<img class="clogo big" src="${esc(c.logo)}" alt="">` : '<span class="small muted">Sem logótipo (usa as iniciais)</span>'}</span>
+      <label class="btn sm" for="clLogo">${c.logo ? 'Trocar logótipo' : 'Escolher logótipo'}</label><input id="clLogo" type="file" accept="image/*" hidden>
+      <button class="btn sm dang" data-a="clLogoDel" ${c.logo ? '' : 'hidden'}>Remover</button></div>
+    <div class="small muted">Use o ficheiro oficial do clube (PNG com fundo transparente fica melhor). A imagem é reduzida a um ícone pequeno.</div>
     <div class="row spread">${delBtn('clubDel', id, 'Apagar clube')}<button class="btn pri" data-a="clubSave" data-id="${esc(id || '')}">Gravar</button></div>`);
 }
 
@@ -888,9 +913,11 @@ async function onClick(e) {
   }
   else if (a === 'clubSave') {
     if (!v('clName')) { toast('O clube precisa de nome.'); return; }
-    const c = { name: v('clName'), short: v('clShort') };
+    const c = Object.assign(id ? clone(S.clubs[id]) : {}, { name: v('clName'), short: v('clShort') });
+    if (S.edit && S.edit.kind === 'club') { if (S.edit.logo) c.logo = S.edit.logo; else delete c.logo; }
     if (await save('clubs', id || uniqueId('clubs', slug(c.short || c.name)), c)) { closeDlg(); pickCtx(); }
   }
+  else if (a === 'clLogoDel') { S.edit.logo = ''; $('#clLogoPrev').innerHTML = '<span class="small muted">Sem logótipo (usa as iniciais)</span>'; t.hidden = true; }
   else if (a === 'clubDel') {
     const used = Object.values(S.boats).some(b => b.clubId === id) || Object.values(S.skippers).some(s => s.clubId === id) || Object.values(S.events).some(e => e.clubId === id) || Object.values(S.champs).some(c => c.clubId === id);
     if (used) { toast('Este clube está em uso.'); return; }
@@ -1017,6 +1044,12 @@ async function doImport() {
 document.addEventListener('change', e => { if (e.target && e.target.type === 'date') setTimeout(() => e.target.blur(), 0); }, true);
 document.addEventListener('change', e => { const el = e.target; if (el && (el.id === 'rStart' || el.id === 'rLim') && el.value && E.secs(el.value) != null) el.value = cleanTime(el.value); }, true);
 document.addEventListener('change', async e => {
+  if (e.target.id === 'clLogo' && e.target.files[0]) {
+    try { const url = await logoDataUrl(e.target.files[0]); if (url.length > 60000) { toast('Imagem demasiado pesada mesmo reduzida; experimente um PNG mais simples.'); return; }
+      S.edit.logo = url; $('#clLogoPrev').innerHTML = `<img class="clogo big" src="${url}" alt="">`; const d = $('[data-a=clLogoDel]'); if (d) d.hidden = false; }
+    catch (_) { toast('Não foi possível ler a imagem.'); }
+    e.target.value = ''; return;
+  }
   if (e.target.id === 'impFile' && e.target.files[0]) { const f = e.target.files[0], d = e.target.dataset; e.target.value = ''; const eid = d.e || await ensureEvent(d.c); return eid && importEntries(f, eid); }
   if (e.target.id !== 'photoIn' || !e.target.files[0]) return;
   if (!ASSETS) { toast('Só os editores podem guardar fotografias.'); return; }

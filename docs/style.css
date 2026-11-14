@@ -121,3 +121,7 @@ dialog .db { padding: 14px; display: flex; flex-direction: column; gap: 10px; ma
 .toast { position: fixed; inset: auto; top: max(12px, env(safe-area-inset-top)); right: 12px; left: auto; bottom: auto; margin: 0; max-width: min(360px, calc(100vw - 24px)); border: 0; background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-size: .9rem; z-index: 1000; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); }
 @media (prefers-reduced-motion: no-preference) { .toast { animation: toastIn .2s ease-out; } @keyframes toastIn { from { transform: translateY(-8px); opacity: .4; } } }
 @media (min-width: 700px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
+
+.clogo { width: 18px; height: 18px; border-radius: 4px; vertical-align: -4px; margin-right: 6px; object-fit: contain; display: inline-flex; align-items: center; justify-content: center; font: 700 8px/1 var(--font-body); color: #fff; letter-spacing: -.02em; flex: none; }
+img.clogo { background: #fff; }
+.clogo.big { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; margin-right: 0; }
