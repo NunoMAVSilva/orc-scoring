@@ -63,6 +63,7 @@ async function init() {
   $('#ctxSel').onchange = e => {
     const v = e.target.value;
     if (v === '__newC') { e.target.value = S.ctx || ''; return openChampForm(null); }
+    if (v === '__newE') { e.target.value = S.ctx || ''; return S.ctx ? openEventForm(null, ctxId()) : null; }
     S.ctx = v; try { localStorage.setItem('ctx', v); } catch (_) {}
     S.group = 'GERAL'; location.hash = 'classificacao'; render();
   };
@@ -104,7 +105,7 @@ function pickCtx() {
   if (!valid(S.ctx)) S.ctx = valid(saved) ? saved : champs[0] ? 'c:' + champs[0][0] : null;
   const opt = (v, t) => `<option value="${esc(v)}" ${v === S.ctx ? 'selected' : ''}>${esc(t)}</option>`;
   $('#ctxSel').innerHTML = champs.map(([id, c]) => opt('c:' + id, c.name)).join('')
-    + (S.canEdit ? '<option value="__newC">+ Criar campeonato</option>' : '');
+    + (S.canEdit ? `<option value="__newC">+ Criar campeonato</option><option value="__newE" ${S.ctx ? '' : 'disabled'}>+ Nova prova${S.ctx ? ' neste campeonato' : ' (escolha um campeonato)'}</option>` : '');
   if (!S.ctx) $('#ctxSel').insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>');
   const c = S.ctx ? S.champs[ctxId()] : null;
   $('#clubName').textContent = c ? (S.clubs[c.clubId] || {}).name || '' : '';
@@ -120,14 +121,14 @@ async function del(col, id) { try { await DB.doc(col + '/' + id).delete(); delet
 function route() { return (location.hash || '#classificacao').slice(1); }
 function render() {
   const r = route();
-  const tab = r.startsWith('race-') || r.startsWith('prova-') || r === 'provas' ? 'provas' : r.startsWith('boat-') || r === 'frota' ? 'frota' : 'classificacao';
+  const tab = r.startsWith('race-') || r.startsWith('prova-') || r === 'regatas' || r === 'provas' ? 'regatas' : r.startsWith('boat-') || r === 'frota' ? 'frota' : 'classificacao';
   document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.r === tab));
   if (!S.ready) return;
   const v = $('#view');
   if (r.startsWith('race-')) v.innerHTML = viewRace(r.slice(5));
   else if (r.startsWith('prova-')) v.innerHTML = viewEvent(r.slice(6));
   else if (r.startsWith('boat-')) v.innerHTML = viewBoat(r.slice(5));
-  else if (r === 'provas') v.innerHTML = viewEvents();
+  else if (r === 'regatas' || r === 'provas') v.innerHTML = viewRegatas();
   else if (r === 'frota') v.innerHTML = viewFleet();
   else v.innerHTML = viewStandings();
 }
@@ -173,8 +174,24 @@ function standingsTable(st, races, rules) {
 }
 
 /* ---------- provas ---------- */
+// Regatas: campeonato com uma só prova (ou nenhuma) mostra logo as regatas e os inscritos;
+// com várias provas mostra a lista de provas.
+function viewRegatas() {
+  if (!S.ctx) return `<div class="empty">Escolha ou crie um campeonato no topo.${S.canEdit ? '<br><br><button class="btn pri" data-a="newChamp">Criar campeonato</button>' : ''}</div>`;
+  const cid = ctxId(), evs = champEvents(cid);
+  if (evs.length === 1) return viewEvent(evs[0][0], true);
+  if (evs.length) return viewEvents();
+  const c = S.champs[cid];
+  return `<section><h1>Regatas</h1><div class="muted">${esc(c.name)}${c.dateFrom ? ' · ' + evDates(c) : ''}</div></section>
+    <div class="card"><div class="row spread"><h3>Regatas</h3>${S.canEdit ? `<button class="btn sm pri" data-a="newRace" data-c="${esc(cid)}">+ Nova regata</button>` : ''}</div><div class="small muted">Ainda sem regatas.</div></div>
+    <div class="card"><div class="row spread"><h3>Inscritos (0)</h3>${S.canEdit ? `<button class="btn sm pri" data-a="entries" data-c="${esc(cid)}">Gerir inscrições</button>` : ''}</div><div class="small muted">Ainda sem inscritos.</div></div>`;
+}
+async function ensureEvent(cid) {
+  const evs = champEvents(cid); if (evs.length) return evs[0][0];
+  const c = S.champs[cid], eid = uniqueId('events', slug(c.name));
+  return await save('events', eid, { name: c.name, champ: cid, clubId: c.clubId || '', dateFrom: c.dateFrom || today(), dateTo: c.dateTo || c.dateFrom || today(), venue: '', entries: [] }) ? eid : null;
+}
 function viewEvents() {
-  if (!S.ctx) return '<div class="empty">Crie primeiro um campeonato.</div>';
   const evs = ctxEvents();
   const items = evs.map(([eid, e]) => {
     const rs = eventRaces(eid);
@@ -182,10 +199,10 @@ function viewEvents() {
       <div class="meta">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''} · ${rs.length} regata(s) · ${(e.entries || []).length} inscritos</div></div>
       <span class="chip st-${rs.length && rs.every(r => r.status === 'final') ? 'final' : 'provisoria'}">${rs.length && rs.every(r => r.status === 'final') ? 'Final' : rs.length ? 'Provisória' : 'Por correr'}</span></a>`;
   }).join('');
-  return `<section class="row spread"><h1>Provas · ${esc(S.champs[ctxId()].name)}</h1>${S.canEdit ? `<button class="btn pri" data-a="newEvent" data-c="${esc(ctxId())}">+ Nova prova</button>` : ''}</section>
+  return `<section class="row spread"><div><h1>Regatas</h1><div class="small muted">${esc(S.champs[ctxId()].name)} · ${evs.length} provas</div></div>${S.canEdit ? `<button class="btn pri" data-a="newEvent" data-c="${esc(ctxId())}">+ Nova prova</button>` : ''}</section>
     <div class="list">${items || '<div class="empty">Ainda sem provas neste campeonato.</div>'}</div>`;
 }
-function viewEvent(eid) {
+function viewEvent(eid, single) {
   const e = S.events[eid];
   if (!e) return '<div class="empty">Prova não encontrada.</div>';
   const rules = rulesOfEvent(e), rs = eventRaces(eid);
@@ -201,14 +218,17 @@ function viewEvent(eid) {
   if (!tabs.find(t => t.k === S.evGroup)) S.evGroup = 'GERAL';
   const { st } = eventStandings(eid, S.evGroup);
   const champ = e.champ && S.champs[e.champ];
-  return `<section><div class="small muted"><a href="#provas">Provas</a>${champ ? ' · ' + esc(champ.name) : ''}</div>
+  const head = single
+    ? `<section><h1>Regatas</h1><div class="muted">${esc(champ ? champ.name : e.name)} · ${evDates(champ && champ.dateFrom ? champ : e)}${e.venue ? ' · ' + esc(e.venue) : ''}</div></section>`
+    : `<section><div class="small muted"><a href="#regatas">Regatas</a>${champ ? ' · ' + esc(champ.name) : ''}</div>
       <div class="row spread"><h1>${esc(e.name)}</h1>${S.canEdit ? `<button class="btn sm" data-a="editEvent" data-id="${esc(eid)}">Editar prova</button>` : ''}</div>
-      <div class="muted">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''}${S.clubs[e.clubId] ? ' · ' + esc(S.clubs[e.clubId].name) : ''}</div></section>
+      <div class="muted">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''}${S.clubs[e.clubId] ? ' · ' + esc(S.clubs[e.clubId].name) : ''}</div></section>`;
+  return `${head}
     <div class="card"><div class="row spread"><h3>Regatas</h3>${S.canEdit ? `<button class="btn sm pri" data-a="newRace" data-e="${esc(eid)}">+ Nova regata</button>` : ''}</div>
       <div class="list">${raceItems || '<div class="small muted">Ainda sem regatas.</div>'}</div></div>
-    <div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
+    ${single ? '' : `<div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
       <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
-      ${standingsTable(st, rs, rules)}</div>
+      ${standingsTable(st, rs, rules)}</div>`}
     <div class="card"><div class="row spread"><h3>Inscritos (${entries.length})</h3>${S.canEdit ? `<button class="btn sm pri" data-a="entries" data-id="${esc(eid)}">Gerir inscrições</button>` : ''}</div>
       ${entries.length ? `<div class="scroll"><table><thead><tr><th>Barco</th><th>Skipper</th><th>Clube</th></tr></thead><tbody>${entryRows}</tbody></table></div>` : '<div class="small muted">Ainda sem inscritos.</div>'}</div>`;
 }
@@ -233,7 +253,7 @@ function viewRace(id) {
       <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
   }).join('');
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
-  return `<section class="row spread"><div><div class="small muted"><a href="#prova-${esc(race.event)}">${esc(ev.name || 'Prova')}</a> · R${idx}</div><h1>${esc(race.name)}</h1></div>
+  return `<section class="row spread"><div><div class="small muted"><a href="#${champEvents(ev.champ).length > 1 ? 'prova-' + esc(race.event) : 'regatas'}">${champEvents(ev.champ).length > 1 ? esc(ev.name || 'Prova') : 'Regatas'}</a> · R${idx}</div><h1>${esc(race.name)}</h1></div>
       <span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span></section>
     <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${esc((race.start || '').slice(0, 5))}</b><span>largada</span></div>
       <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
@@ -308,7 +328,7 @@ function viewFleet() {
       <div class="meta num">ToT costeiro ${fmt4(cl && cl.value)} · barl./sotav. ${fmt4(wl && wl.value)}</div></div>${k ? `<span class="chip k-${esc(k)}">${esc(k)}</span>` : '<span class="chip">sem rating</span>'}${!champMode && S.canEdit && cid ? enrollBtn(id, evCount(id)) : ''}</a>`;
   }).join('');
   const intro = champMode
-    ? `<div class="small muted">${cid ? `Barcos inscritos em pelo menos uma prova de ${esc(S.champs[cid].name)}. As inscrições fazem-se em cada prova (Provas → prova → Gerir inscrições).` : 'Escolha um campeonato no topo.'}</div>`
+    ? `<div class="small muted">${cid ? `Barcos inscritos em pelo menos uma prova de ${esc(S.champs[cid].name)}. Inscreva barcos em Regatas → Gerir inscrições, ou na Base de dados com o botão Inscrever.` : 'Escolha um campeonato no topo.'}</div>`
     : '<div class="small muted">Todos os barcos guardados. Estar na base de dados não inscreve o barco em nenhuma prova.</div>';
   return `<section class="row spread"><h1>${champMode ? 'Frota' : 'Base de dados'}</h1>${S.canEdit && !champMode ? '<button class="btn pri" data-a="newBoat">+ Novo barco</button>' : ''}</section>${head}${intro}
     <input id="fleetQ" value="${esc(q)}" placeholder="Procurar barco, vela, tipo, skipper ou clube" style="padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
@@ -363,7 +383,7 @@ function openChampForm(id) {
 }
 function openEventForm(id, champId) {
   champId = champId || ctxId();
-  const e = id ? S.events[id] : { name: '', champ: champId || '', clubId: champId && S.champs[champId] ? S.champs[champId].clubId : '', dateFrom: today(), dateTo: today(), venue: '', entries: [] };
+  const e = id ? S.events[id] : { name: '', champ: champId || '', clubId: champId && S.champs[champId] ? S.champs[champId].clubId : '', dateFrom: (S.champs[champId] || {}).dateFrom || today(), dateTo: (S.champs[champId] || {}).dateTo || (S.champs[champId] || {}).dateFrom || today(), venue: '', entries: [] };
   const champOpts = Object.entries(S.champs).map(([k, c]) => [k, c.name]);
   dialog(id ? 'Editar prova' : 'Nova prova', `<div class="grid-f">${field('eName', 'Nome da prova', e.name)}${sel('eChamp', 'Campeonato', e.champ || '', champOpts)}
     ${field('eFrom', 'Data de início', e.dateFrom, 'type="date"')}${field('eTo', 'Data de fim', e.dateTo, 'type="date"')}
@@ -550,8 +570,8 @@ async function onClick(e) {
   else if (a === 'editChamp') openChampForm(id);
   else if (a === 'newEvent') openEventForm(null, t.dataset.c || null);
   else if (a === 'editEvent') openEventForm(id);
-  else if (a === 'entries') openEntriesForm(id);
-  else if (a === 'newRace') openRaceForm(null, t.dataset.e);
+  else if (a === 'entries') { const eid = id || await ensureEvent(t.dataset.c); if (eid) openEntriesForm(eid); }
+  else if (a === 'newRace') { const eid = t.dataset.e || await ensureEvent(t.dataset.c); if (eid) openRaceForm(null, eid); }
   else if (a === 'editRace') openRaceForm(id);
   else if (a === 'newBoat') openBoatForm(null, t.dataset.e || '');
   else if (a === 'editBoat') openBoatForm(id);
@@ -575,9 +595,9 @@ async function onClick(e) {
   }
   else if (a === 'enroll') {
     const evs = champEvents(ctxId());
-    if (!evs.length) { toast('Crie primeiro uma prova neste campeonato (separador Provas).'); return; }
-    if (evs.length === 1 && !(evs[0][1].entries || []).includes(id)) {
-      if (await setEntry(evs[0][0], id, true)) { toast(S.boats[id].name + ' inscrito em ' + evs[0][1].name + '.'); render(); }
+    if (evs.length <= 1 && !(evs.length && (evs[0][1].entries || []).includes(id))) {
+      const eid = await ensureEvent(ctxId());
+      if (eid && await setEntry(eid, id, true)) { toast(S.boats[id].name + ' inscrito em ' + S.champs[ctxId()].name + '.'); render(); }
       return;
     }
     openEnroll(id);
@@ -604,7 +624,7 @@ async function onClick(e) {
     const cid = id || uniqueId('champs', slug(c.name + ' ' + c.season));
     if (!await save('champs', cid, c)) return;
     S.ctx = 'c:' + cid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {}
-    closeDlg(); pickCtx(); if (id) render(); else location.hash = 'provas';
+    closeDlg(); pickCtx(); if (id) render(); else location.hash = 'regatas';
   }
   else if (a === 'champDel') {
     if (champEvents(id).length) { toast('O campeonato tem provas: mova-as ou apague-as primeiro.'); return; }
@@ -623,7 +643,7 @@ async function onClick(e) {
   else if (a === 'eventDel') {
     if (eventRaces(id).length) { toast('A prova tem regatas: apague-as primeiro.'); return; }
     if (!confirmOnce()) return;
-    if (await del('events', id)) { closeDlg(); pickCtx(); location.hash = 'provas'; }
+    if (await del('events', id)) { closeDlg(); pickCtx(); location.hash = 'regatas'; }
   }
   else if (a === 'raceSave') {
     if (!v('rName') || !v('rDate') || !v('rEvent') || E.secs(v('rStart')) == null) { toast('Preencha nome, prova, data e hora de largada.'); return; }
@@ -637,7 +657,7 @@ async function onClick(e) {
       closeDlg(); location.hash = 'race-' + rid;
     }
   }
-  else if (a === 'raceDel') { if (!confirmOnce()) return; const eid = S.races[id].event; if (await del('races', id)) { closeDlg(); location.hash = 'prova-' + eid; } }
+  else if (a === 'raceDel') { if (!confirmOnce()) return; const eid = S.races[id].event, multi = champEvents((S.events[eid] || {}).champ).length > 1; if (await del('races', id)) { closeDlg(); location.hash = multi ? 'prova-' + eid : 'regatas'; } }
   else if (a === 'boatSave') {
     if (!v('bName')) { toast('O barco precisa de nome.'); return; }
     let skipperId = v('bSkip');
