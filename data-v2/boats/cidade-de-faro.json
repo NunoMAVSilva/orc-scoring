@@ -1,0 +1,28 @@
+{
+  "certs": [
+    {
+      "CDL": 9.36,
+      "ToD_CL": 597.3,
+      "ToT_CL": 1.0045,
+      "ToT_WL": 0.8866,
+      "from": "2025-06-30",
+      "kind": "orc",
+      "src": "POR 2025"
+    },
+    {
+      "CDL": 9.36,
+      "ToD_CL": 597.1,
+      "ToT_CL": 1.0048,
+      "ToT_WL": 0.8872,
+      "from": "2026-04-29",
+      "kind": "orc",
+      "src": "POR 2026"
+    }
+  ],
+  "div": "B",
+  "name": "CIDADE DE FARO",
+  "sail": "POR 1372",
+  "type": "JOD 35",
+  "clubId": "gcnfaro",
+  "skipperId": "carlos-oliveira"
+}

@@ -1,0 +1,19 @@
+{
+  "certs": [
+    {
+      "CDL": 6.149,
+      "ToD_CL": 714.5,
+      "ToT_CL": 0.8397,
+      "ToT_WL": 0.7387,
+      "from": "2026-07-09",
+      "kind": "orc",
+      "src": "POR 2026"
+    }
+  ],
+  "div": "C",
+  "name": "SEITA TOO",
+  "sail": "POR 4163",
+  "type": "SAFFIER 26",
+  "clubId": "cvlagos",
+  "skipperId": "antonio-viegas"
+}

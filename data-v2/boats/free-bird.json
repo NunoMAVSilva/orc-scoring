@@ -1,0 +1,18 @@
+{
+  "certs": [
+    {
+      "ToD_CL": 710.6,
+      "ToT_CL": 0.8444,
+      "ToT_WL": 0.7528,
+      "from": "2025-01-01",
+      "kind": "copiado",
+      "src": "Kaunis ITA 2024"
+    }
+  ],
+  "div": "C",
+  "name": "FREE BIRD",
+  "sail": "",
+  "type": "DEHLER 25",
+  "clubId": "cimav",
+  "skipperId": "francisco-melo"
+}

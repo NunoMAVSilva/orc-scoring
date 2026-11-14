@@ -1,0 +1,28 @@
+{
+  "certs": [
+    {
+      "CDL": 8.409,
+      "ToD_CL": 646.1,
+      "ToT_CL": 0.9287,
+      "ToT_WL": 0.8234,
+      "from": "2025-07-11",
+      "kind": "orc",
+      "src": "POR 2025"
+    },
+    {
+      "CDL": 8.409,
+      "ToD_CL": 647.5,
+      "ToT_CL": 0.9267,
+      "ToT_WL": 0.8213,
+      "from": "2026-02-13",
+      "kind": "orc",
+      "src": "POR 2026"
+    }
+  ],
+  "div": "C",
+  "name": "JÁ FOSTE",
+  "sail": "POR 8169",
+  "type": "FIRST 31.7",
+  "clubId": "gcnfaro",
+  "skipperId": "joao-botinas"
+}

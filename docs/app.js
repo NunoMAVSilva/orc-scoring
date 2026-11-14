@@ -1,12 +1,14 @@
-/* ORC Scoring — app */
+/* ORC Scoring v2 — Campeonato → Prova (com inscritos) → Regatas */
 'use strict';
 const E = window.ORC;
-const S = { boats: {}, classes: {}, champs: {}, races: {}, loaded: {}, canEdit: false, champId: null, group: 'GERAL', raceGroup: 'GERAL', edit: null, catalog: null };
+const COLS = ['champs', 'events', 'races', 'boats', 'classes', 'clubs', 'skippers'];
+const S = { loaded: {}, canEdit: false, ctx: null, group: 'GERAL', raceGroup: 'GERAL', evGroup: 'GERAL', fleetTab: 'boats', edit: null, catalog: null };
+COLS.forEach(c => { S[c] = {}; });
 let DB = null, ASSETS = null, SAMPLE = null, DOWN = null;
-// STATIC: site público (GitHub Pages) sem o runtime do Claude — dados de data/db.json, só leitura.
+// STATIC: site público (GitHub Pages), fora do Claude — lê data/db.json, só leitura.
 const STATIC = !(window.claude && typeof window.claude.use === 'function');
-const COLS = ['boats', 'classes', 'champs', 'races'];
 const CODES = ['FIN', 'DNF', 'DNS', 'RET', 'OCS', 'BFD', 'UFD', 'DSQ', 'DNE'];
+const DEFAULT_RULES = { discards: [{ upTo: 3, n: 0 }, { upTo: 8, n: 1 }, { upTo: 999, n: 2 }], divLimits: { A: 9.9, B: 8.8 }, groups: ['A', 'B', 'C', 'SB'], classGroups: [] };
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt4 = v => v == null || v === '' ? '—' : Number(v).toFixed(4).replace('.', ',');
@@ -16,37 +18,55 @@ const today = () => new Date().toISOString().slice(0, 10);
 const dPT = d => d ? d.split('-').reverse().join('/') : '';
 const slug = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('x' + Date.now());
 const norm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]/g, '');
+const byName = (a, b) => (a[1].name || '').localeCompare(b[1].name || '');
+const uniqueId = (col, base) => { let id = base, i = 2; while (S[col][id]) id = base + '-' + i++; return id; };
+const clone = o => JSON.parse(JSON.stringify(o));
 
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 function dbState() { return { boats: S.boats, classes: S.classes }; }
-function champ() { return S.champs[S.champId]; }
-function champRaces(cid) {
-  const c = S.champs[cid || S.champId]; if (!c) return [];
-  const ids = (c.order || []).filter(id => S.races[id]);
-  Object.keys(S.races).forEach(id => { if (S.races[id].champ === (cid || S.champId) && !ids.includes(id)) ids.push(id); });
-  return ids.map(id => Object.assign({ id }, S.races[id])).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-}
-function divOf(b) { return E.divisionOf(b, '', dbState(), champ()); }
-function groupsOf(c) {
+
+/* ---------- modelo ---------- */
+const sortRaces = list => list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+function eventRaces(eid) { return sortRaces(Object.entries(S.races).filter(([, r]) => r.event === eid).map(([id, r]) => Object.assign({ id }, r))); }
+function champEvents(cid) { return Object.entries(S.events).filter(([, e]) => e.champ === cid).sort((a, b) => (a[1].dateFrom || '').localeCompare(b[1].dateFrom || '')); }
+function champRaces(cid) { return sortRaces(champEvents(cid).flatMap(([eid]) => eventRaces(eid))); }
+function champEntries(cid) { return [...new Set(champEvents(cid).flatMap(([, e]) => e.entries || []))]; }
+function rulesOfEvent(ev) { return ev && ev.champ && S.champs[ev.champ] ? S.champs[ev.champ] : Object.assign({}, DEFAULT_RULES, ev || {}); }
+function rulesOfRace(r) { return rulesOfEvent(S.events[r.event]); }
+function ctxKind() { return S.ctx ? S.ctx[0] : null; }
+function ctxId() { return S.ctx ? S.ctx.slice(2) : null; }
+function ctxRules() { return ctxKind() === 'c' ? S.champs[ctxId()] : rulesOfEvent(S.events[ctxId()]); }
+function ctxEvents() { return ctxKind() === 'c' ? champEvents(ctxId()) : (S.events[ctxId()] ? [[ctxId(), S.events[ctxId()]]] : []); }
+function divOf(b, rules) { return E.divisionOf(b, '', dbState(), rules || ctxRules()); }
+function groupsOf(rules) {
   const g = [{ k: 'GERAL', t: 'Geral' }];
-  ((c && c.groups) || ['A', 'B', 'C', 'SB']).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d }));
-  ((c && c.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name }));
+  ((rules && rules.groups) || DEFAULT_RULES.groups).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d }));
+  ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name }));
   return g;
 }
-function groupFilter(k) {
+function groupFilter(k, rules) {
   if (k === 'GERAL') return null;
-  if (k.startsWith('DIV:')) { const d = k.slice(4); return b => divOf(b) === d; }
+  if (k.startsWith('DIV:')) { const d = k.slice(4); return b => divOf(b, rules) === d; }
   if (k.startsWith('CLS:')) { const c = k.slice(4); return b => b.classRef === c; }
   return null;
 }
-function boatSub(b) { return [b.sail, b.type].filter(Boolean).join(' · '); }
-function divChip(b) { const d = divOf(b); return `<span class="chip div-${esc(d)}">${esc(d)}</span>`; }
+const clubShort = id => (S.clubs[id] && (S.clubs[id].short || S.clubs[id].name)) || '';
+const skipperName = id => (S.skippers[id] && S.skippers[id].name) || '';
+function boatSub(b) { return [b.sail, b.type, clubShort(b.clubId)].filter(Boolean).join(' · '); }
+function divChip(b, rules) { const d = divOf(b, rules); return `<span class="chip div-${esc(d)}">${esc(d)}</span>`; }
+function evDates(e) { return e.dateFrom && e.dateTo && e.dateTo !== e.dateFrom ? `${dPT(e.dateFrom)} a ${dPT(e.dateTo)}` : dPT(e.dateFrom); }
 
 /* ---------- arranque / dados ---------- */
 async function init() {
   window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0 }); });
   $('#dlgX').onclick = () => $('#dlg').close();
-  $('#champSel').onchange = e => { if (e.target.value === '__new') { e.target.value = S.champId || ''; return openChampForm(null); } S.champId = e.target.value; try { localStorage.setItem('champ', S.champId); } catch (_) {} render(); };
+  $('#ctxSel').onchange = e => {
+    const v = e.target.value;
+    if (v === '__newC') { e.target.value = S.ctx || ''; return openChampForm(null); }
+    if (v === '__newE') { e.target.value = S.ctx || ''; return openEventForm(null, null); }
+    S.ctx = v; try { localStorage.setItem('ctx', v); } catch (_) {}
+    S.group = 'GERAL'; location.hash = 'classificacao'; render();
+  };
   document.addEventListener('click', onClick);
   render();
   const timer = setTimeout(() => { if (!S.ready) $('#view').innerHTML = '<div class="warn">Não foi possível ligar à base de dados ainda. Verifique a ligação; os dados aparecem assim que houver resposta.</div>'; }, 10000);
@@ -59,7 +79,7 @@ async function init() {
     const o = {}; snap.docs.forEach(d => { o[d.id] = d.data(); });
     S[col] = o; S.loaded[col] = true;
     if (COLS.every(c => S.loaded[c])) { S.ready = true; clearTimeout(timer); }
-    if (S.ready) { pickChamp(); if (!S.edit) render(); }
+    if (S.ready) { pickCtx(); if (!S.edit) render(); }
   }, err => { clearTimeout(timer); $('#view').innerHTML = `<div class="warn">Erro ao ler dados (${esc(err.code)}).</div>`; }));
   window.claude.use('assets').then(a => { ASSETS = a; }).catch(() => {});
   window.claude.use('sample').then(s => { SAMPLE = s; }).catch(() => {});
@@ -69,128 +89,172 @@ async function loadStatic(timer) {
   try {
     const data = await fetch('data/db.json', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
     COLS.forEach(col => { S[col] = data[col] || {}; S.loaded[col] = true; });
-    S.exportedAt = data.exportedAt || null;
-    S.ready = true; clearTimeout(timer);
-    pickChamp(); render();
-  } catch (e) {
-    clearTimeout(timer);
-    $('#view').innerHTML = `<div class="warn">Não foi possível carregar os resultados (${esc(e.message)}).</div>`;
-  }
+    S.exportedAt = data.exportedAt || null; S.ready = true; clearTimeout(timer); pickCtx(); render();
+  } catch (e) { clearTimeout(timer); $('#view').innerHTML = `<div class="warn">Não foi possível carregar os resultados (${esc(e.message)}).</div>`; }
 }
-function downloadFile(filename, data, type) {
-  const url = URL.createObjectURL(new Blob([data], { type: type || 'text/html' }));
+function downloadFile(filename, data) {
+  const url = URL.createObjectURL(new Blob([data], { type: 'text/html' }));
   const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function pickChamp() {
-  const ids = Object.keys(S.champs).sort((a, b) => (S.champs[b].season || '').localeCompare(S.champs[a].season || ''));
-  let saved = null; try { saved = localStorage.getItem('champ'); } catch (_) {}
-  if (!S.champId || !S.champs[S.champId]) S.champId = (saved && S.champs[saved]) ? saved : ids[0] || null;
-  $('#champSel').innerHTML = ids.map(id => `<option value="${esc(id)}" ${id === S.champId ? 'selected' : ''}>${esc(S.champs[id].name)}</option>`).join('') + (S.canEdit ? '<option value="__new">+ Novo campeonato</option>' : '');
-  if (S.champId) $('#clubName').textContent = S.champs[S.champId].club || '';
+const updatedNote = () => STATIC && S.exportedAt ? ` · Atualizado a ${dPT(S.exportedAt.slice(0, 10))} às ${new Date(S.exportedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' })}.` : '';
+function pickCtx() {
+  const champs = Object.entries(S.champs).sort((a, b) => (b[1].season || '').localeCompare(a[1].season || ''));
+  const loose = Object.entries(S.events).filter(([, e]) => !e.champ || !S.champs[e.champ]).sort((a, b) => (b[1].dateFrom || '').localeCompare(a[1].dateFrom || ''));
+  const valid = v => v && ((v[0] === 'c' && S.champs[v.slice(2)]) || (v[0] === 'e' && S.events[v.slice(2)]));
+  let saved = null; try { saved = localStorage.getItem('ctx'); } catch (_) {}
+  if (!valid(S.ctx)) S.ctx = valid(saved) ? saved : champs[0] ? 'c:' + champs[0][0] : loose[0] ? 'e:' + loose[0][0] : null;
+  const opt = (v, t) => `<option value="${esc(v)}" ${v === S.ctx ? 'selected' : ''}>${esc(t)}</option>`;
+  $('#ctxSel').innerHTML = (champs.length ? `<optgroup label="Campeonatos">${champs.map(([id, c]) => opt('c:' + id, c.name)).join('')}</optgroup>` : '')
+    + (loose.length ? `<optgroup label="Provas avulsas">${loose.map(([id, e]) => opt('e:' + id, e.name)).join('')}</optgroup>` : '')
+    + (S.canEdit ? '<optgroup label="Criar"><option value="__newC">+ Novo campeonato</option><option value="__newE">+ Nova prova avulsa</option></optgroup>' : '');
+  if (!S.ctx) $('#ctxSel').insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>');
+  const c = ctxKind() === 'c' ? S.champs[ctxId()] : S.events[ctxId()];
+  $('#clubName').textContent = c ? (S.clubs[c.clubId] || {}).name || '' : '';
 }
 async function save(col, id, data) {
   if (!S.canEdit) { toast('Só os editores podem alterar dados.'); return false; }
-  try { await DB.doc(col + '/' + id).set(JSON.parse(JSON.stringify(data))); return true; }
+  try { await DB.doc(col + '/' + id).set(clone(data)); S[col][id] = clone(data); return true; }
   catch (e) { toast('Não gravou: ' + (e.code || e.message)); return false; }
 }
-async function del(col, id) { try { await DB.doc(col + '/' + id).delete(); return true; } catch (e) { toast('Não apagou: ' + (e.code || e.message)); return false; } }
+async function del(col, id) { try { await DB.doc(col + '/' + id).delete(); delete S[col][id]; return true; } catch (e) { toast('Não apagou: ' + (e.code || e.message)); return false; } }
 
 /* ---------- router ---------- */
-function route() { const h = (location.hash || '#classificacao').slice(1); return h; }
+function route() { return (location.hash || '#classificacao').slice(1); }
 function render() {
   const r = route();
-  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', r.startsWith(a.dataset.r) || (a.dataset.r === 'regatas' && r.startsWith('race-')) || (a.dataset.r === 'frota' && r.startsWith('boat-'))));
+  const tab = r.startsWith('race-') || r.startsWith('prova-') || r === 'provas' ? 'provas' : r.startsWith('boat-') || r === 'frota' ? 'frota' : 'classificacao';
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.r === tab));
   if (!S.ready) return;
   const v = $('#view');
   if (r.startsWith('race-')) v.innerHTML = viewRace(r.slice(5));
+  else if (r.startsWith('prova-')) v.innerHTML = viewEvent(r.slice(6));
   else if (r.startsWith('boat-')) v.innerHTML = viewBoat(r.slice(5));
-  else if (r === 'regatas') v.innerHTML = viewRaces();
+  else if (r === 'provas') v.innerHTML = viewEvents();
   else if (r === 'frota') v.innerHTML = viewFleet();
   else v.innerHTML = viewStandings();
 }
 
 /* ---------- classificações ---------- */
 function viewStandings() {
-  const c = champ();
-  if (!c) return `<div class="empty">Ainda não há campeonatos.${S.canEdit ? '<br><br><button class="btn pri" data-a="newChamp">Criar campeonato</button>' : ''}</div>`;
-  const races = champRaces();
-  const tabs = groupsOf(c).concat([{ k: 'PROVAS', t: 'Provas' }]);
+  if (!S.ctx) return `<div class="empty">Ainda não há campeonatos nem provas.${S.canEdit ? '<br><br><button class="btn pri" data-a="newChamp">Criar campeonato</button> <button class="btn" data-a="newEvent">Criar prova avulsa</button>' : ''}</div>`;
+  if (ctxKind() === 'e') return eventStandingsPage(ctxId());
+  const cid = ctxId(), c = S.champs[cid], races = champRaces(cid);
+  const tabs = groupsOf(c).concat([{ k: 'PROVAS', t: 'Por prova' }]);
   if (!tabs.find(t => t.k === S.group)) S.group = 'GERAL';
-  let body = '';
-  if (S.group === 'PROVAS') body = eventsBlock(races);
+  let body;
+  if (S.group === 'PROVAS') body = champEvents(cid).map(([eid, e]) => {
+    const rs = eventRaces(eid);
+    const st = E.seriesStandings(rs, dbState(), { discards: 0, boats: e.entries || [] });
+    return `<div class="card"><div class="row spread"><h2><a href="#prova-${esc(eid)}" style="color:inherit">${esc(e.name)}</a></h2><span class="small muted">${evDates(e)}</span></div><div class="small muted">${rs.length} regata(s) · ${(e.entries || []).length} inscritos · soma sem descartes</div>${standingsTable(st, rs, c)}</div>`;
+  }).join('') || '<div class="empty">Sem provas.</div>';
   else {
-    const st = E.seriesStandings(races, dbState(), { champ: c, filter: groupFilter(S.group) });
-    body = standingsTable(st, races) + `<p class="small muted">DNC = ${st.dnc} pontos (barcos do grupo no campeonato + 1) · ${st.nDiscards} descarte(s) com ${races.length} regatas · desempates RRS A8. Pontos riscados = descartes.${STATIC && S.exportedAt ? ' · Dados atualizados em ' + dPT(S.exportedAt.slice(0, 10)) + '.' : ''}</p>`;
+    const st = E.seriesStandings(races, dbState(), { champ: c, filter: groupFilter(S.group, c), boats: champEntries(cid) });
+    body = standingsTable(st, races, c) + `<p class="small muted">DNC = ${st.dnc} pontos (inscritos do grupo no campeonato + 1) · ${st.nDiscards} descarte(s) com ${races.length} regatas · desempates RRS A8. Pontos riscados = descartes.${updatedNote()}</p>`;
   }
   const fin = races.filter(r => r.status === 'final').length;
-  return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${races.length} regatas · ${fin} finais · ${esc(c.season || '')}</div></div>
-    <div class="row">${S.canEdit ? `<button class="btn sm" data-a="editChamp">Definições</button>` : ''}<button class="btn sm" data-a="export">Exportar</button></div></section>
+  return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${champEvents(cid).length} provas · ${races.length} regatas · ${fin} finais · ${esc(c.season || '')}</div></div>
+    <div class="row">${S.canEdit ? `<button class="btn sm" data-a="editChamp" data-id="${esc(cid)}">Definições</button>` : ''}<button class="btn sm" data-a="export">Exportar</button></div></section>
     <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     ${body}`;
 }
-function standingsTable(st, races) {
+function eventStandings(eid, groupKey) {
+  const e = S.events[eid], rules = rulesOfEvent(e), rs = eventRaces(eid);
+  const opts = e.champ ? { discards: 0 } : { champ: rules };
+  return { rs, rules, st: E.seriesStandings(rs, dbState(), Object.assign(opts, { filter: groupFilter(groupKey, rules), boats: e.entries || [] })) };
+}
+function eventStandingsPage(eid) {
+  const e = S.events[eid];
+  if (!e) return '<div class="empty">Prova não encontrada.</div>';
+  const rules = rulesOfEvent(e), tabs = groupsOf(rules);
+  if (!tabs.find(t => t.k === S.group)) S.group = 'GERAL';
+  const { rs, st } = eventStandings(eid, S.group);
+  return `<section class="row spread"><div><h1>${esc(e.name)}</h1><div class="small muted">${evDates(e)} · ${rs.length} regata(s) · ${(e.entries || []).length} inscritos</div></div>
+    <div class="row"><a class="btn sm" href="#prova-${esc(eid)}" style="text-decoration:none;color:inherit">Ver prova</a><button class="btn sm" data-a="export">Exportar</button></div></section>
+    <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
+    ${standingsTable(st, rs, rules)}<p class="small muted">DNC = ${st.dnc} pontos · ${st.nDiscards} descarte(s) · desempates RRS A8.${updatedNote()}</p>`;
+}
+function standingsTable(st, races, rules) {
   if (!st.table.length) return '<div class="empty">Sem resultados ainda.</div>';
   const head = races.map((r, i) => `<th class="n" title="${esc(r.name)}"><a href="#race-${esc(r.id)}">R${i + 1}</a></th>`).join('');
   const rows = st.table.map(r => {
     const b = S.boats[r.boatId] || {};
     const cells = r.cells.map(c => `<td class="n ${c.disc ? 'disc' : ''} ${c.code && !c.disc ? 'code' : ''}"><span>${c.code ? esc(c.code) + ' ' : ''}${ptsF(c.pts)}</span></td>`).join('');
-    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat"><a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
+    return `<tr class="podium-${r.rank}"><td class="pos sticky">${r.rank}</td><td class="boat"><a href="#boat-${esc(r.boatId)}" style="color:inherit;text-decoration:none">${esc(r.name)}</a> ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n net">${ptsF(r.net)}</td><td class="n muted">${ptsF(r.total)}</td>${cells}</tr>`;
   }).join('');
   return `<div class="scroll"><table><thead><tr><th class="sticky">#</th><th>Barco</th><th class="n">Líq.</th><th class="n">Total</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
-function eventsBlock(races) {
-  const evs = {}; races.forEach(r => { (evs[r.event || r.name] = evs[r.event || r.name] || []).push(r); });
-  const multi = Object.entries(evs).filter(([, rs]) => rs.length > 1);
-  if (!multi.length) return '<div class="empty">Nenhuma prova com mais de uma regata.</div>';
-  return multi.map(([name, rs]) => {
-    const st = E.seriesStandings(rs, dbState(), { discards: 0, filter: groupFilter('GERAL') });
-    return `<div class="card"><h2>${esc(name)}</h2><div class="small muted">${rs.length} regatas · ${dPT(rs[0].date)} · soma sem descartes</div>${standingsTable(st, rs)}</div>`;
-  }).join('');
-}
 
-/* ---------- lista de regatas ---------- */
-function viewRaces() {
-  const c = champ();
-  if (!c) return '<div class="empty">Crie primeiro um campeonato.</div>';
-  const races = champRaces();
-  const items = races.map((r, i) => {
+/* ---------- provas ---------- */
+function viewEvents() {
+  if (!S.ctx) return '<div class="empty">Crie primeiro um campeonato ou uma prova avulsa.</div>';
+  const evs = ctxEvents();
+  const items = evs.map(([eid, e]) => {
+    const rs = eventRaces(eid);
+    return `<a class="item" href="#prova-${esc(eid)}"><div class="grow"><div class="title">${esc(e.name)}</div>
+      <div class="meta">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''} · ${rs.length} regata(s) · ${(e.entries || []).length} inscritos</div></div>
+      <span class="chip st-${rs.length && rs.every(r => r.status === 'final') ? 'final' : 'provisoria'}">${rs.length && rs.every(r => r.status === 'final') ? 'Final' : rs.length ? 'Provisória' : 'Por correr'}</span></a>`;
+  }).join('');
+  const title = ctxKind() === 'c' ? 'Provas · ' + esc(S.champs[ctxId()].name) : 'Prova avulsa';
+  return `<section class="row spread"><h1>${title}</h1>${S.canEdit && ctxKind() === 'c' ? `<button class="btn pri" data-a="newEvent" data-c="${esc(ctxId())}">+ Nova prova</button>` : ''}</section>
+    <div class="list">${items || '<div class="empty">Sem provas.</div>'}</div>`;
+}
+function viewEvent(eid) {
+  const e = S.events[eid];
+  if (!e) return '<div class="empty">Prova não encontrada.</div>';
+  const rules = rulesOfEvent(e), rs = eventRaces(eid);
+  const raceItems = rs.map((r, i) => {
     const n = (r.finishes || []).length, nf = (r.finishes || []).filter(f => !f.code || f.code === 'FIN').length;
     return `<a class="item" href="#race-${esc(r.id)}"><div class="idx">R${i + 1}</div><div class="grow"><div class="title">${esc(r.name)}</div>
-      <div class="meta">${dPT(r.date)} · largada ${esc((r.start || '').slice(0, 5))} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.event && r.event !== r.name ? ' · ' + esc(r.event) : ''}</div>
-      <div class="meta">${nf} chegados de ${n} na prova</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span></a>`;
+      <div class="meta">${dPT(r.date)} · largada ${esc((r.start || '').slice(0, 5))} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''}</div>
+      <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span></a>`;
   }).join('');
-  return `<section class="row spread"><h1>Regatas</h1>${S.canEdit ? '<button class="btn pri" data-a="newRace">+ Nova regata</button>' : ''}</section>
-    <div class="list">${items || '<div class="empty">Sem regatas neste campeonato.</div>'}</div>`;
+  const entries = (e.entries || []).filter(id => S.boats[id]).map(id => [id, S.boats[id]]).sort(byName);
+  const entryRows = entries.map(([id, b]) => `<tr><td class="boat"><a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span></td><td>${esc(skipperName(b.skipperId))}</td><td>${esc(clubShort(b.clubId))}</td></tr>`).join('');
+  const tabs = groupsOf(rules);
+  if (!tabs.find(t => t.k === S.evGroup)) S.evGroup = 'GERAL';
+  const { st } = eventStandings(eid, S.evGroup);
+  const champ = e.champ && S.champs[e.champ];
+  return `<section><div class="small muted"><a href="#provas">Provas</a>${champ ? ' · ' + esc(champ.name) : ' · prova avulsa'}</div>
+      <div class="row spread"><h1>${esc(e.name)}</h1>${S.canEdit ? `<button class="btn sm" data-a="editEvent" data-id="${esc(eid)}">Editar prova</button>` : ''}</div>
+      <div class="muted">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''}${S.clubs[e.clubId] ? ' · ' + esc(S.clubs[e.clubId].name) : ''}</div></section>
+    <div class="card"><div class="row spread"><h3>Regatas</h3>${S.canEdit ? `<button class="btn sm pri" data-a="newRace" data-e="${esc(eid)}">+ Nova regata</button>` : ''}</div>
+      <div class="list">${raceItems || '<div class="small muted">Ainda sem regatas.</div>'}</div></div>
+    <div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champ ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
+      <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
+      ${standingsTable(st, rs, rules)}</div>
+    <div class="card"><div class="row spread"><h3>Inscritos (${entries.length})</h3>${S.canEdit ? `<button class="btn sm pri" data-a="entries" data-id="${esc(eid)}">Gerir inscrições</button>` : ''}</div>
+      ${entries.length ? `<div class="scroll"><table><thead><tr><th>Barco</th><th>Skipper</th><th>Clube</th></tr></thead><tbody>${entryRows}</tbody></table></div>` : '<div class="small muted">Ainda sem inscritos.</div>'}</div>`;
 }
 
 /* ---------- regata ---------- */
 function viewRace(id) {
   const r0 = S.races[id];
   if (!r0) return '<div class="empty">Regata não encontrada.</div>';
-  const race = Object.assign({ id }, r0);
-  const idx = champRaces(race.champ).findIndex(x => x.id === id) + 1;
+  const race = Object.assign({ id }, r0), ev = S.events[race.event] || {}, rules = rulesOfRace(race);
+  const idx = eventRaces(race.event).findIndex(x => x.id === id) + 1;
   const { problems } = E.scoreRace(race, dbState());
-  const c = S.champs[race.champ];
-  const tabs = groupsOf(c);
+  const notEntered = (race.finishes || []).filter(f => S.boats[f.boatId] && !(ev.entries || []).includes(f.boatId)).map(f => S.boats[f.boatId].name);
+  if (notEntered.length) problems.push('Não inscritos nesta prova: ' + notEntered.join(', '));
+  const tabs = groupsOf(rules);
   if (!tabs.find(t => t.k === S.raceGroup)) S.raceGroup = 'GERAL';
-  const { rows } = E.raceResults(race, dbState(), groupFilter(S.raceGroup));
+  const { rows } = E.raceResults(race, dbState(), groupFilter(S.raceGroup, rules));
   const isToD = race.system.startsWith('ToD');
   const tr = rows.map(x => {
     const b = S.boats[x.boatId] || {};
-    if (x.code) return `<tr><td class="pos">—</td><td class="boat">${esc(x.name)} ${divChip(b)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
-    return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${esc(x.name)} ${divChip(b)}<span class="sub">${esc(boatSub(b))}</span></td>
+    if (x.code) return `<tr><td class="pos">—</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
+    return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
       <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
   }).join('');
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
-  return `<section class="row spread"><div><div class="small muted"><a href="#regatas">Regatas</a> · R${idx}${race.event && race.event !== race.name ? ' · ' + esc(race.event) : ''}</div><h1>${esc(race.name)}</h1></div>
+  return `<section class="row spread"><div><div class="small muted"><a href="#prova-${esc(race.event)}">${esc(ev.name || 'Prova')}</a> · R${idx}</div><h1>${esc(race.name)}</h1></div>
       <span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span></section>
     <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${esc((race.start || '').slice(0, 5))}</b><span>largada</span></div>
-      <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
+      <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table></div>
-    <p class="small muted">Siglas (DNF, DNS, RET…) = barcos na prova + 1. Barcos do campeonato ausentes da prova ficam DNC na classificação geral. Rating = certificado em vigor a ${dPT(race.date)}; toque no valor para ver a origem.</p>
+    <p class="small muted">Siglas (DNF, DNS, RET…) = barcos na regata + 1. Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.date)}; toque no valor para ver a origem.</p>
     <div class="row">${S.canEdit ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Dados da regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
     ${S.canEdit || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${S.canEdit ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
       ${S.canEdit && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
@@ -203,19 +267,20 @@ function openFinishEditor(id, proposal) {
   drawFinishEditor();
 }
 function drawFinishEditor() {
-  const ed = S.edit, race = S.races[ed.id];
-  const boatsSorted = Object.entries(S.boats).sort((a, b) => a[1].name.localeCompare(b[1].name));
-  const opts = sel => '<option value="">— barco —</option>' + boatsSorted.map(([bid, b]) => `<option value="${esc(bid)}" ${bid === sel ? 'selected' : ''}>${esc(b.name)}${b.sail ? ' (' + esc(b.sail) + ')' : ''}</option>`).join('');
+  const ed = S.edit, race = S.races[ed.id], ev = S.events[race.event] || {};
+  const entered = new Set(ev.entries || []);
+  const boatsSorted = Object.entries(S.boats).filter(([bid]) => entered.has(bid) || ed.rows.some(r => r.boatId === bid)).sort(byName);
+  const opts = sel => '<option value="">— barco —</option>' + boatsSorted.map(([bid, b]) => `<option value="${esc(bid)}" ${bid === sel ? 'selected' : ''}>${esc(b.name)}${b.sail ? ' (' + esc(b.sail) + ')' : ''}${entered.has(bid) ? '' : ' · não inscrito'}</option>`).join('');
   const rows = ed.rows.map((f, i) => `<div class="fin-row"><select data-fi="${i}" data-k="boatId" aria-label="Barco ${i + 1}">${opts(f.boatId)}</select>
      <input data-fi="${i}" data-k="finish" value="${esc(f.finish || '')}" placeholder="hh:mm:ss" inputmode="numeric" aria-label="Hora de chegada ${i + 1}">
      <select data-fi="${i}" data-k="code" aria-label="Sigla ${i + 1}">${CODES.map(c => `<option ${(f.code || 'FIN') === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
-     <button class="x" data-a="finDel" data-i="${i}" aria-label="Remover linha">×</button>${f.read ? `<div class="small muted" style="grid-column:1/-1">lido: “${esc(f.read)}”</div>` : ''}</div>`).join('');
+     <button class="x" data-a="finDel" data-i="${i}" aria-label="Remover linha">×</button>${f.read ? `<div class="small muted" style="grid-column:1/-1">lido: “${esc(f.read)}”${f.boatId ? '' : ' · escolha o barco'}</div>` : ''}</div>`).join('');
   const inRace = new Set(ed.rows.map(r => r.boatId));
-  const quick = boatsSorted.filter(([bid]) => !inRace.has(bid)).map(([bid, b]) => `<button class="btn sm" data-a="finAdd" data-b="${esc(bid)}">${esc(b.name)}</button>`).join('');
-  dialog(`Chegadas · ${race.name}`, `<div class="small muted">Largada ${esc(race.start)} · Ordem de chegada. FIN = chegou (precisa de hora). Siglas DNF/DNS/RET… para barcos que estiveram na prova. Quem não está aqui fica DNC.</div>
+  const quick = boatsSorted.filter(([bid]) => !inRace.has(bid) && entered.has(bid)).map(([bid, b]) => `<button class="btn sm" data-a="finAdd" data-b="${esc(bid)}">${esc(b.name)}</button>`).join('');
+  dialog(`Chegadas · ${race.name}`, `<div class="small muted">Largada ${esc(race.start)} · Ordem de chegada. FIN = chegou (precisa de hora). Siglas DNF/DNS/RET… para barcos que estiveram na regata. Inscritos que não estão aqui ficam DNC.</div>
     <div class="list">${rows || '<div class="muted small">Sem linhas.</div>'}</div>
     <div class="row"><button class="btn sm" data-a="finAdd">+ Linha</button></div>
-    <details><summary class="small">Adicionar barco da frota</summary><div class="row" style="margin-top:8px">${quick}</div></details>
+    <details><summary class="small">Adicionar inscrito (${quick ? 'faltam ' + (boatsSorted.filter(([bid]) => !inRace.has(bid) && entered.has(bid)).length) : 'todos na lista'})</summary><div class="row" style="margin-top:8px">${quick || '<span class="small muted">Para adicionar outro barco, inscreva-o primeiro na prova.</span>'}</div></details>
     <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="finSave">Gravar chegadas</button></div>`);
   $('#dlgB').oninput = $('#dlgB').onchange = e => {
     const el = e.target; if (el.dataset.fi == null) return;
@@ -224,19 +289,36 @@ function drawFinishEditor() {
   };
 }
 
-/* ---------- frota ---------- */
+/* ---------- frota: barcos, skippers, clubes ---------- */
 function viewFleet() {
+  const tabs = [['boats', 'Barcos'], ['skippers', 'Skippers'], ['clubs', 'Clubes']];
+  const t = S.fleetTab;
+  const head = `<div class="tabs">${tabs.map(([k, n]) => `<button data-a="fleetTab" data-k="${k}" class="${t === k ? 'on' : ''}">${n} (${Object.keys(S[k]).length})</button>`).join('')}</div>`;
+  if (t === 'skippers') {
+    const list = Object.entries(S.skippers).sort(byName).map(([id, s]) => {
+      const boats = Object.values(S.boats).filter(b => b.skipperId === id).map(b => b.name).join(', ');
+      return `<div class="item"><div class="grow"><div class="title">${esc(s.name)}</div><div class="meta">${esc(clubShort(s.clubId) || 'sem clube')}${s.license ? ' · licença ' + esc(s.license) : ''}${boats ? ' · ' + esc(boats) : ''}</div></div>${S.canEdit ? `<button class="btn sm" data-a="editSkipper" data-id="${esc(id)}">Editar</button>` : ''}</div>`;
+    }).join('');
+    return `<section class="row spread"><h1>Skippers</h1>${S.canEdit ? '<button class="btn pri" data-a="newSkipper">+ Novo skipper</button>' : ''}</section>${head}<div class="list">${list || '<div class="empty">Sem skippers.</div>'}</div>`;
+  }
+  if (t === 'clubs') {
+    const list = Object.entries(S.clubs).sort(byName).map(([id, c]) => {
+      const nb = Object.values(S.boats).filter(b => b.clubId === id).length;
+      return `<div class="item"><div class="grow"><div class="title">${esc(c.name)}</div><div class="meta">${esc(c.short || '')} · ${nb} barco(s)</div></div>${S.canEdit ? `<button class="btn sm" data-a="editClub" data-id="${esc(id)}">Editar</button>` : ''}</div>`;
+    }).join('');
+    return `<section class="row spread"><h1>Clubes</h1>${S.canEdit ? '<button class="btn pri" data-a="newClub">+ Novo clube</button>' : ''}</section>${head}<div class="list">${list || '<div class="empty">Sem clubes.</div>'}</div>`;
+  }
   const q = S.fleetQ || '';
-  const list = Object.entries(S.boats).filter(([, b]) => !q || norm(b.name + b.sail + b.type + (b.aka || []).join('')).includes(norm(q))).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const list = Object.entries(S.boats).filter(([, b]) => !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId) + clubShort(b.clubId) + (b.aka || []).join('')).includes(norm(q))).sort(byName);
   const d = today();
   const items = list.map(([id, b]) => {
     const cl = E.ratingAt(b, d, 'ToT_CL', dbState()), wl = E.ratingAt(b, d, 'ToT_WL', dbState());
     const k = cl ? cl.cert.kind || 'orc' : null;
-    return `<a class="item" href="#boat-${esc(id)}"><div class="grow"><div class="title">${esc(b.name)} ${divChip(b)}</div><div class="meta">${esc(boatSub(b))}${b.club ? ' · ' + esc(b.club) : ''}</div>
+    return `<a class="item" href="#boat-${esc(id)}"><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}</div>
       <div class="meta num">ToT costeiro ${fmt4(cl && cl.value)} · barl./sotav. ${fmt4(wl && wl.value)}</div></div>${k ? `<span class="chip k-${esc(k)}">${esc(k)}</span>` : '<span class="chip">sem rating</span>'}</a>`;
   }).join('');
-  return `<section class="row spread"><h1>Frota</h1>${S.canEdit ? '<button class="btn pri" data-a="newBoat">+ Novo barco</button>' : ''}</section>
-    <input id="fleetQ" value="${esc(q)}" placeholder="Procurar barco, número de vela ou tipo" style="padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
+  return `<section class="row spread"><h1>Barcos</h1>${S.canEdit ? '<button class="btn pri" data-a="newBoat">+ Novo barco</button>' : ''}</section>${head}
+    <input id="fleetQ" value="${esc(q)}" placeholder="Procurar barco, vela, tipo, skipper ou clube" style="padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
     <div class="small muted">${list.length} barcos · ratings em vigor hoje (${dPT(d)})</div>
     <div class="list">${items}</div>`;
 }
@@ -244,13 +326,17 @@ function viewBoat(id) {
   const b = S.boats[id]; if (!b) return '<div class="empty">Barco não encontrado.</div>';
   const certs = (b.classRef && S.classes[b.classRef] ? S.classes[b.classRef].certs : b.certs || []).map((c, i) => ({ c, i })).sort((x, y) => (y.c.from || '').localeCompare(x.c.from || ''));
   const races = Object.entries(S.races).filter(([, r]) => (r.finishes || []).some(f => f.boatId === id)).sort((x, y) => y[1].date.localeCompare(x[1].date));
-  const crow = ({ c, i }) => `<tr><td>${dPT(c.from)}</td><td><span class="chip k-${esc(c.kind || 'orc')}">${esc(c.kind || 'orc')}</span></td><td class="n">${fmt4(c.ToT_CL)}</td><td class="n">${fmt4(c.ToT_WL)}</td><td class="n">${fmt1(E.certValue(c, 'ToD_CL'))}</td><td class="n">${c.CDL ? Number(c.CDL).toFixed(3) : '—'}</td><td class="small" style="white-space:normal;min-width:160px">${esc(c.src || '')}</td>${S.canEdit && !b.classRef ? `<td><button class="x btn sm dang" data-a="certDel" data-b="${esc(id)}" data-i="${i}" aria-label="Apagar certificado">×</button></td>` : ''}</tr>`;
+  const evs = Object.entries(S.events).filter(([, e]) => (e.entries || []).includes(id)).sort((x, y) => (y[1].dateFrom || '').localeCompare(x[1].dateFrom || ''));
+  const sk = S.skippers[b.skipperId];
+  const crow = ({ c, i }) => `<tr><td>${dPT(c.from)}</td><td><span class="chip k-${esc(c.kind || 'orc')}">${esc(c.kind || 'orc')}</span></td><td class="n">${fmt4(c.ToT_CL)}</td><td class="n">${fmt4(c.ToT_WL)}</td><td class="n">${fmt1(E.certValue(c, 'ToD_CL'))}</td><td class="n">${c.GPH ? fmt1(c.GPH) : '—'}</td><td class="n">${c.CDL ? Number(c.CDL).toFixed(3) : '—'}</td><td class="small" style="white-space:normal;min-width:160px">${esc(c.src || '')}</td>${S.canEdit && !b.classRef ? `<td><button class="x btn sm dang" data-a="certDel" data-b="${esc(id)}" data-i="${i}" aria-label="Apagar certificado">×</button></td>` : ''}</tr>`;
   return `<section><div class="small muted"><a href="#frota">Frota</a></div><div class="row spread"><h1>${esc(b.name)} ${divChip(b)}</h1>${S.canEdit ? `<button class="btn sm" data-a="editBoat" data-id="${esc(id)}">Editar</button>` : ''}</div>
-    <div class="muted">${esc([b.sail, b.type, b.club, b.skipper].filter(Boolean).join(' · '))}</div>${(b.aka || []).length ? `<div class="small muted">Também conhecido por: ${esc(b.aka.join(', '))}</div>` : ''}${b.note ? `<div class="info">${esc(b.note)}</div>` : ''}</section>
+    <div class="muted">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</div>${(b.aka || []).length ? `<div class="small muted">Também conhecido por: ${esc(b.aka.join(', '))}</div>` : ''}${b.note ? `<div class="info">${esc(b.note)}</div>` : ''}</section>
+    <div class="kpis"><div class="kpi"><b>${esc(sk ? sk.name : '—')}</b><span>skipper${sk && sk.license ? ' · lic. ' + esc(sk.license) : ''}</span></div><div class="kpi"><b>${esc(clubShort(b.clubId) || '—')}</b><span>clube do barco</span></div></div>
     <div class="card"><div class="row spread"><h3>Certificados${b.classRef ? ' da classe ' + esc((S.classes[b.classRef] || {}).name) : ''}</h3>${S.canEdit && !b.classRef ? `<button class="btn sm pri" data-a="addCert" data-id="${esc(id)}">+ Certificado</button>` : ''}</div>
       <div class="small muted">Em cada regata usa-se o certificado em vigor nessa data. ToD costeiro = 600 ÷ ToT quando não indicado.</div>
-      <div class="scroll"><table><thead><tr><th>Desde</th><th>Tipo</th><th class="n">ToT cost.</th><th class="n">ToT b/s</th><th class="n">ToD cost.</th><th class="n">CDL</th><th>Origem</th>${S.canEdit && !b.classRef ? '<th></th>' : ''}</tr></thead><tbody>${certs.map(crow).join('') || '<tr><td colspan="8" class="muted">Sem certificados.</td></tr>'}</tbody></table></div></div>
-    <div class="card"><h3>Regatas</h3>${races.map(([rid, r]) => { const res = E.raceResults(Object.assign({ id: rid }, r), dbState()).rows.find(x => x.boatId === id) || {}; return `<a class="item" href="#race-${esc(rid)}"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">${dPT(r.date)} · ${esc((S.champs[r.champ] || {}).name || '')}</div></div><b class="num">${res.code ? esc(res.code) : res.pos ? res.pos + 'º' : ''}</b></a>`; }).join('') || '<div class="muted small">Ainda sem regatas.</div>'}</div>`;
+      <div class="scroll"><table><thead><tr><th>Desde</th><th>Tipo</th><th class="n">ToT cost.</th><th class="n">ToT b/s</th><th class="n">ToD cost.</th><th class="n">GPH</th><th class="n">CDL</th><th>Origem</th>${S.canEdit && !b.classRef ? '<th></th>' : ''}</tr></thead><tbody>${certs.map(crow).join('') || '<tr><td colspan="9" class="muted">Sem certificados.</td></tr>'}</tbody></table></div></div>
+    <div class="card"><h3>Provas inscritas</h3>${evs.map(([eid, e]) => `<a class="item" href="#prova-${esc(eid)}"><div class="grow"><div class="title">${esc(e.name)}</div><div class="meta">${evDates(e)}${e.champ && S.champs[e.champ] ? ' · ' + esc(S.champs[e.champ].name) : ''}</div></div></a>`).join('') || '<div class="muted small">Sem inscrições.</div>'}</div>
+    <div class="card"><h3>Regatas</h3>${races.map(([rid, r]) => { const res = E.raceResults(Object.assign({ id: rid }, r), dbState()).rows.find(x => x.boatId === id) || {}; return `<a class="item" href="#race-${esc(rid)}"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">${dPT(r.date)} · ${esc((S.events[r.event] || {}).name || '')}</div></div><b class="num">${res.code ? esc(res.code) : res.pos ? res.pos + 'º' : ''}</b></a>`; }).join('') || '<div class="muted small">Ainda sem regatas.</div>'}</div>`;
 }
 
 /* ---------- formulários ---------- */
@@ -259,33 +345,86 @@ function closeDlg() { $('#dlg').close(); S.edit = null; render(); }
 function field(id, label, val, attrs) { return `<label class="f" for="${id}">${label}<input id="${id}" value="${esc(val == null ? '' : val)}" ${attrs || ''}></label>`; }
 function sel(id, label, val, opts) { return `<label class="f" for="${id}">${label}<select id="${id}">${opts.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}" ${String(v) === String(val ?? '') ? 'selected' : ''}>${esc(t)}</option>`; }).join('')}</select></label>`; }
 const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
-
-function openRaceForm(id) {
-  const r = id ? S.races[id] : { champ: S.champId, date: today(), start: '', system: 'ToT_CL', status: 'provisoria', finishes: [] };
-  const evs = [...new Set(champRaces(r.champ).map(x => x.event).filter(Boolean))];
-  dialog(id ? 'Dados da regata' : 'Nova regata', `<div class="grid-f">
-    ${field('rName', 'Nome da regata', r.name)}${field('rEvent', 'Prova (agrupa regatas do mesmo dia)', r.event, 'list="evList"')}<datalist id="evList">${evs.map(e => `<option value="${esc(e)}">`).join('')}</datalist>
-    ${field('rDate', 'Data', r.date, 'type="date"')}${field('rStart', 'Hora da largada', r.start, 'placeholder="hh:mm:ss"')}
-    ${sel('rSys', 'Sistema de pontuação', r.system, Object.entries(E.SYSTEMS))}${field('rDist', 'Distância (NM, para ToD)', r.distance || '', 'inputmode="decimal"')}
-    ${field('rLim', 'Hora limite de chegada', r.timeLimit || '', 'placeholder="hh:mm:ss"')}${sel('rStatus', 'Estado', r.status || 'provisoria', [['provisoria', 'Provisória'], ['final', 'Final']])}</div>
-    <div class="row spread">${id ? `<button class="btn dang" data-a="raceDel" data-id="${esc(id)}">Apagar regata</button>` : '<span></span>'}<button class="btn pri" data-a="raceSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+const clubOpts = () => [['', '— sem clube —']].concat(Object.entries(S.clubs).sort(byName).map(([k, c]) => [k, c.name]));
+const delBtn = (a, id, label) => id ? `<button class="btn dang" data-a="${a}" data-id="${esc(id)}">${label}</button>` : '<span></span>';
+function rulesFields(r) {
+  return `${field('cDisc', 'Descartes (até N regatas: descartes)', (r.discards || []).map(d => d.upTo + ':' + d.n).join(', '), 'placeholder="3:0, 8:1, 999:2"')}
+    ${field('cA', 'Divisão A: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).A, 'inputmode="decimal"')}${field('cB', 'Divisão B: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).B, 'inputmode="decimal"')}
+    ${field('cGroups', 'Divisões a classificar', (r.groups || []).join(', '))}</div>
+    <div class="small muted">Classificações por classe (monotipias):</div><div class="row">${Object.entries(S.classes).map(([k, cl]) => `<label class="row small"><input type="checkbox" class="cCls" value="${esc(k)}" ${(r.classGroups || []).includes(k) ? 'checked' : ''}> ${esc(cl.name)}</label>`).join('') || '<span class="small muted">Sem classes definidas.</span>'}</div>`;
 }
-function openBoatForm(id) {
-  const b = id ? S.boats[id] : { name: '', certs: [] };
-  dialog(id ? 'Editar barco' : 'Novo barco', `<div class="grid-f">${field('bName', 'Nome', b.name)}${field('bSail', 'Número de vela', b.sail)}${field('bType', 'Tipo / modelo', b.type)}
-    ${field('bClub', 'Clube', b.club)}${field('bSkip', 'Timoneiro / skipper', b.skipper)}${field('bAka', 'Outros nomes (separados por vírgula)', (b.aka || []).join(', '))}
-    ${sel('bDiv', 'Divisão', b.div || '', [['', 'Automática (CDL)'], 'A', 'B', 'C', 'SB'])}${sel('bCls', 'Monotipia (rating da classe)', b.classRef || '', [['', '— não —']].concat(Object.entries(S.classes).map(([k, c]) => [k, c.name])))}
-    <label class="f" for="bNote" style="flex-basis:100%">Notas<textarea id="bNote" rows="2">${esc(b.note || '')}</textarea></label></div>
-    <div class="row spread">${id ? `<button class="btn dang" data-a="boatDel" data-id="${esc(id)}">Apagar barco</button>` : '<span></span>'}<button class="btn pri" data-a="boatSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+function readRules() {
+  return {
+    discards: v('cDisc').split(',').map(s => s.split(':').map(Number)).filter(p => p.length === 2 && !p.some(isNaN)).map(([u, n]) => ({ upTo: u, n })).sort((x, y) => x.upTo - y.upTo),
+    divLimits: { A: Number(v('cA').replace(',', '.')), B: Number(v('cB').replace(',', '.')) },
+    groups: v('cGroups').split(',').map(s => s.trim()).filter(Boolean),
+    classGroups: [...document.querySelectorAll('.cCls:checked')].map(x => x.value),
+  };
 }
 function openChampForm(id) {
-  const c = id ? S.champs[id] : { name: '', club: 'Ginásio Clube Naval de Faro', season: '', discards: [{ upTo: 3, n: 0 }, { upTo: 8, n: 1 }, { upTo: 999, n: 2 }], divLimits: { A: 9.9, B: 8.8 }, groups: ['A', 'B', 'C', 'SB'], classGroups: [] };
-  dialog(id ? 'Definições do campeonato' : 'Novo campeonato', `<div class="grid-f">${field('cName', 'Nome', c.name)}${field('cSeason', 'Época', c.season)}${field('cClub', 'Clube organizador', c.club)}
-    ${field('cDisc', 'Descartes (até N regatas: descartes)', (c.discards || []).map(d => d.upTo + ':' + d.n).join(', '), 'placeholder="3:0, 8:1, 999:2"')}
-    ${field('cA', 'Divisão A: CDL ≥', c.divLimits.A, 'inputmode="decimal"')}${field('cB', 'Divisão B: CDL ≥', c.divLimits.B, 'inputmode="decimal"')}
-    ${field('cGroups', 'Divisões a classificar', (c.groups || []).join(', '))}</div>
-    <div class="small muted">Classificações por classe (monotipias):</div><div class="row">${Object.entries(S.classes).map(([k, cl]) => `<label class="row small"><input type="checkbox" class="cCls" value="${esc(k)}" ${(c.classGroups || []).includes(k) ? 'checked' : ''}> ${esc(cl.name)}</label>`).join('') || '<span class="small muted">Sem classes definidas.</span>'}</div>
-    <div class="row spread"><span></span><button class="btn pri" data-a="champSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+  const c = id ? S.champs[id] : Object.assign({ name: '', season: '', clubId: '' }, clone(DEFAULT_RULES));
+  dialog(id ? 'Definições do campeonato' : 'Novo campeonato', `<div class="grid-f">${field('cName', 'Nome', c.name)}${field('cSeason', 'Época', c.season, 'placeholder="2026/27"')}${sel('cClub', 'Clube organizador', c.clubId, clubOpts())}
+    ${rulesFields(c)}
+    <div class="row spread">${delBtn('champDel', id, 'Apagar campeonato')}<button class="btn pri" data-a="champSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+}
+function openEventForm(id, champId) {
+  const e = id ? S.events[id] : Object.assign({ name: '', champ: champId || '', clubId: champId && S.champs[champId] ? S.champs[champId].clubId : '', dateFrom: today(), dateTo: today(), venue: '', entries: [] }, champId ? {} : clone(DEFAULT_RULES));
+  const champOpts = [['', '— prova avulsa —']].concat(Object.entries(S.champs).map(([k, c]) => [k, c.name]));
+  dialog(id ? 'Editar prova' : 'Nova prova', `<div class="grid-f">${field('eName', 'Nome da prova', e.name)}${sel('eChamp', 'Campeonato', e.champ || '', champOpts)}
+    ${field('eFrom', 'Data de início', e.dateFrom, 'type="date"')}${field('eTo', 'Data de fim', e.dateTo, 'type="date"')}
+    ${sel('eClub', 'Clube organizador', e.clubId, clubOpts())}${field('eVenue', 'Local', e.venue, 'placeholder="ex.: Ria Formosa"')}</div>
+    <details ${e.champ ? '' : 'open'}><summary class="small">Regras (só para provas avulsas; dentro de um campeonato usam-se as do campeonato)</summary><div class="grid-f" style="margin-top:8px">${rulesFields(e.champ ? Object.assign({}, DEFAULT_RULES, e) : e)}</details>
+    <div class="row spread">${delBtn('eventDel', id, 'Apagar prova')}<button class="btn pri" data-a="eventSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+}
+function openRaceForm(id, eventId) {
+  const r = id ? S.races[id] : { event: eventId, date: (S.events[eventId] || {}).dateFrom || today(), start: '', system: 'ToT_CL', status: 'provisoria', finishes: [] };
+  const evOpts = Object.entries(S.events).sort((a, b) => (b[1].dateFrom || '').localeCompare(a[1].dateFrom || '')).map(([k, e]) => [k, e.name + (e.champ && S.champs[e.champ] ? ' · ' + S.champs[e.champ].name : '')]);
+  dialog(id ? 'Dados da regata' : 'Nova regata', `<div class="grid-f">
+    ${field('rName', 'Nome da regata', r.name, 'placeholder="ex.: Regata 1"')}${sel('rEvent', 'Prova', r.event, evOpts)}
+    ${field('rDate', 'Data', r.date, 'type="date"')}${field('rStart', 'Hora da largada', r.start, 'placeholder="hh:mm:ss"')}
+    ${sel('rSys', 'Sistema de pontuação', r.system, Object.entries(E.SYSTEMS))}${field('rDist', 'Distância do percurso (NM, para ToD)', r.distance || '', 'inputmode="decimal"')}
+    ${field('rLim', 'Hora limite de chegada', r.timeLimit || '', 'placeholder="hh:mm:ss"')}${sel('rStatus', 'Estado', r.status || 'provisoria', [['provisoria', 'Provisória'], ['final', 'Final']])}</div>
+    <div class="row spread">${delBtn('raceDel', id, 'Apagar regata')}<button class="btn pri" data-a="raceSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+}
+function openEntriesForm(eid) {
+  const e = S.events[eid];
+  S.edit = { kind: 'entries', id: eid, set: new Set(e.entries || []) };
+  drawEntries();
+}
+function drawEntries() {
+  const ed = S.edit, q = norm(ed.q || '');
+  const raced = new Set(eventRaces(ed.id).flatMap(r => (r.finishes || []).map(f => f.boatId)));
+  const list = Object.entries(S.boats).filter(([, b]) => !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId)).includes(q)).sort(byName);
+  const rows = list.map(([id, b]) => `<label class="item" style="cursor:pointer"><input type="checkbox" class="entChk" value="${esc(id)}" ${ed.set.has(id) ? 'checked' : ''} ${raced.has(id) && ed.set.has(id) ? 'disabled title="Tem resultados nesta prova"' : ''}><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}${raced.has(id) ? ' · com resultados' : ''}</div></div></label>`).join('');
+  dialog('Inscrições · ' + S.events[ed.id].name, `<div class="row spread"><span class="small muted">${ed.set.size} inscritos</span><button class="btn sm" data-a="newBoat" data-e="${esc(ed.id)}">+ Novo barco</button></div>
+    <input id="entQ" value="${esc(ed.q || '')}" placeholder="Procurar barco" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
+    <div class="list">${rows || '<div class="small muted">Nenhum barco.</div>'}</div>
+    <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="entriesSave">Gravar inscrições</button></div>`);
+  $('#dlgB').onchange = ev => { if (ev.target.classList.contains('entChk')) { ev.target.checked ? ed.set.add(ev.target.value) : ed.set.delete(ev.target.value); } };
+  $('#dlgB').oninput = ev => { if (ev.target.id === 'entQ') { ed.q = ev.target.value; const pos = ev.target.selectionStart; drawEntries(); const i = $('#entQ'); i.focus(); i.setSelectionRange(pos, pos); } };
+}
+function openBoatForm(id, enterEvent) {
+  const b = id ? S.boats[id] : { name: '', certs: [], clubId: '', skipperId: '' };
+  const skOpts = [['', '— sem skipper —']].concat(Object.entries(S.skippers).sort(byName).map(([k, s]) => [k, s.name + (s.clubId ? ' (' + clubShort(s.clubId) + ')' : '')])).concat([['__new', '+ Novo skipper…']]);
+  dialog(id ? 'Editar barco' : 'Novo barco', `<div class="grid-f">${field('bName', 'Nome', b.name)}${field('bSail', 'Número de vela', b.sail)}${field('bType', 'Tipo / modelo', b.type)}
+    ${sel('bClub', 'Clube do barco', b.clubId, clubOpts())}${sel('bSkip', 'Skipper', b.skipperId || '', skOpts)}</div>
+    <div class="grid-f" id="newSk" hidden>${field('skName', 'Nome do novo skipper', '')}${field('skLic', 'Nº licença desportiva (opcional)', '')}${sel('skClub', 'Clube do skipper', b.clubId, clubOpts())}</div>
+    <div class="grid-f">${field('bAka', 'Outros nomes (separados por vírgula)', (b.aka || []).join(', '))}
+    ${sel('bDiv', 'Divisão', b.div || '', [['', 'Automática (CDL)'], 'A', 'B', 'C', 'SB'])}${sel('bCls', 'Monotipia (rating da classe)', b.classRef || '', [['', '— não —']].concat(Object.entries(S.classes).map(([k, c]) => [k, c.name])))}
+    <label class="f" for="bNote" style="flex-basis:100%">Notas<textarea id="bNote" rows="2">${esc(b.note || '')}</textarea></label></div>
+    <div class="small muted">${id ? '' : 'Depois de gravar, adicione o certificado de medição na página do barco.'}</div>
+    <div class="row spread">${delBtn('boatDel', id, 'Apagar barco')}<button class="btn pri" data-a="boatSave" data-id="${esc(id || '')}" data-e="${esc(enterEvent || '')}">Gravar</button></div>`);
+  $('#bSkip').onchange = () => { $('#newSk').hidden = $('#bSkip').value !== '__new'; };
+}
+function openSkipperForm(id) {
+  const s = id ? S.skippers[id] : { name: '', clubId: '', license: '' };
+  dialog(id ? 'Editar skipper' : 'Novo skipper', `<div class="grid-f">${field('sName', 'Nome', s.name)}${sel('sClub', 'Clube', s.clubId, clubOpts())}${field('sLic', 'Nº licença desportiva (opcional)', s.license)}</div>
+    <div class="row spread">${delBtn('skipperDel', id, 'Apagar skipper')}<button class="btn pri" data-a="skipperSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+}
+function openClubForm(id) {
+  const c = id ? S.clubs[id] : { name: '', short: '' };
+  dialog(id ? 'Editar clube' : 'Novo clube', `<div class="grid-f">${field('clName', 'Nome completo', c.name, 'placeholder="ex.: Clube Naval de Tavira"')}${field('clShort', 'Sigla', c.short, 'placeholder="ex.: CNTavira"')}</div>
+    <div class="row spread">${delBtn('clubDel', id, 'Apagar clube')}<button class="btn pri" data-a="clubSave" data-id="${esc(id || '')}">Gravar</button></div>`);
 }
 
 /* ---------- certificados ---------- */
@@ -298,19 +437,17 @@ function openCertForm(boatId, tab) {
      ${field('cFrom', 'Válido a partir de', today(), 'type="date"')}<div id="catRes" class="list"></div>`;
   else if (tab === 'manual') body = `<div class="grid-f">${field('mFrom', 'Válido a partir de', today(), 'type="date"')}${sel('mKind', 'Tipo', 'manual', [['orc', 'Certificado ORC próprio'], ['teste', 'Certificado de teste'], ['copiado', 'Copiado de barco semelhante'], ['manual', 'Atribuído manualmente']])}
      ${field('mCL', 'ToT costeiro', '', 'inputmode="decimal"')}${field('mWL', 'ToT barl./sotav.', '', 'inputmode="decimal"')}${field('mTodCL', 'ToD costeiro (s/NM)', '', 'inputmode="decimal"')}${field('mTodWL', 'ToD barl./sotav. (s/NM)', '', 'inputmode="decimal"')}
-     ${field('mCDL', 'CDL', '', 'inputmode="decimal"')}${field('mSrc', 'Origem (barco, país, ano)', '')}</div>
+     ${field('mGPH', 'GPH (s/NM)', '', 'inputmode="decimal"')}${field('mCDL', 'CDL', '', 'inputmode="decimal"')}${field('mSrc', 'Origem (barco, país, ano)', '')}</div>
      <div class="small muted">Se só tiver o ToD, a app calcula o ToT = 600 ÷ ToD. Em certificados até 2019 o ToT barl./sotav. impresso usa 675 ÷ ToD: introduza o ToD para converter para a escala atual.</div>
      <button class="btn pri" data-a="certManual" data-b="${esc(boatId)}">Adicionar certificado</button>`;
   else {
-    const refs = Object.entries(S.boats).filter(([k]) => k !== boatId).sort((a, b) => a[1].name.localeCompare(b[1].name));
+    const refs = Object.entries(S.boats).filter(([k]) => k !== boatId).sort(byName);
     body = `<div class="small muted">Aplica um fator a todos os valores do certificado de um barco de referência (fator = ToT costeiro pretendido ÷ ToT costeiro da referência). Ex.: Titã a partir do Cidade de Faro.</div>
      <div class="grid-f">${sel('dRef', 'Barco de referência', '', refs.map(([k, b]) => [k, b.name]))}${field('dTarget', 'ToT costeiro pretendido', '', 'inputmode="decimal"')}${field('dFrom', 'Válido a partir de', today(), 'type="date"')}</div>
      <button class="btn pri" data-a="certDeriv" data-b="${esc(boatId)}">Calcular e adicionar</button>`;
   }
   dialog('Novo certificado · ' + S.boats[boatId].name, `<div class="tabs">${tabs.map(([k, t]) => `<button data-a="certTab" data-b="${esc(boatId)}" data-k="${k}" class="${k === tab ? 'on' : ''}">${t}</button>`).join('')}</div>${body}`);
-  if (tab === 'orc') {
-    loadCatalog().then(() => { const q = $('#catQ'); if (!q) return; q.value = S.boats[boatId].name; q.oninput = () => catSearch(boatId); catSearch(boatId); q.focus(); });
-  }
+  if (tab === 'orc') loadCatalog().then(() => { const q = $('#catQ'); if (!q) return; q.value = S.boats[boatId].name; q.oninput = () => catSearch(boatId); catSearch(boatId); q.focus(); });
 }
 async function loadCatalog() {
   if (S.catalog) return S.catalog;
@@ -321,29 +458,30 @@ function catSearch(boatId) {
   const q = norm($('#catQ').value); const out = $('#catRes'); if (!out) return;
   if (q.length < 3) { out.innerHTML = '<div class="small muted">Escreva pelo menos 3 caracteres.</div>'; return; }
   const hits = S.catalog.rows.filter(r => norm(r[0]).includes(q) || norm(r[1]).includes(q) || norm(r[2]).includes(q)).slice(0, 60);
-  out.innerHTML = hits.map((r, i) => `<div class="item"><div class="grow"><div class="title">${esc(r[0])} <span class="chip">${esc(r[3])}</span> <span class="chip">${r[4] === 'I' ? 'ORCi' : 'Club'}</span>${r[9] ? ' <span class="chip div-SB">SB</span>' : ''}</div>
-    <div class="meta">${esc(r[1])} · ${esc(r[2])} · emitido ${dPT(r[5])}</div><div class="meta num">ToT cost. ${fmt4(r[7])} · b/s ${fmt4(r[8])} · CDL ${r[6]}</div></div>
+  out.innerHTML = hits.map(r => `<div class="item"><div class="grow"><div class="title">${esc(r[0])} <span class="chip">${esc(r[3])}</span> <span class="chip">${r[4] === 'I' ? 'ORCi' : 'Club'}</span>${r[9] ? ' <span class="chip div-SB">SB</span>' : ''}</div>
+    <div class="meta">${esc(r[1])} · ${esc(r[2])} · emitido ${dPT(r[5])}</div><div class="meta num">ToT cost. ${fmt4(r[7])} · b/s ${fmt4(r[8])} · GPH ${fmt1(r[11])} · CDL ${r[6]}</div></div>
     <div class="row" style="flex-direction:column;align-items:stretch"><button class="btn sm pri" data-a="catUse" data-b="${esc(boatId)}" data-ref="${esc(r[10])}" data-k="orc">Próprio</button><button class="btn sm" data-a="catUse" data-b="${esc(boatId)}" data-ref="${esc(r[10])}" data-k="copiado">Copiar</button></div></div>`).join('') || '<div class="small muted">Nenhum certificado ativo encontrado.</div>';
 }
 async function addCert(boatId, cert) {
-  const b = JSON.parse(JSON.stringify(S.boats[boatId]));
+  const b = clone(S.boats[boatId]);
   b.certs = (b.certs || []).concat([cert]);
   if (await save('boats', boatId, b)) { toast('Certificado adicionado.'); closeDlg(); }
 }
 
 /* ---------- leitura da folha com o Claude ---------- */
 async function readSheet(raceId) {
-  const race = S.races[raceId];
+  const race = S.races[raceId], ev = S.events[race.event] || {};
   if (!SAMPLE) { toast('A leitura com o Claude não está disponível nesta vista.'); return; }
   const pid = (race.photos || []).slice(-1)[0];
   dialog('Ler folha com o Claude', '<div class="info">A ler a fotografia… pode demorar alguns segundos.</div>');
   try {
     const blob = await fetch('/_blob/' + pid).then(r => r.blob());
-    const fleet = Object.entries(S.boats).map(([id, b]) => `${id} | ${b.name} | ${(b.aka || []).join('/')} | ${b.sail || ''} | ${b.type || ''}`).join('\n');
+    const ids = (ev.entries || []).length ? ev.entries : Object.keys(S.boats);
+    const fleet = ids.filter(id => S.boats[id]).map(id => { const b = S.boats[id]; return `${id} | ${b.name} | ${(b.aka || []).join('/')} | ${b.sail || ''} | ${b.type || ''} | ${skipperName(b.skipperId)}`; }).join('\n');
     const prompt = `És secretário de regata. Lê a folha de chegadas manuscrita da fotografia (regata "${race.name}", largada ${race.start}).
 Devolve APENAS JSON com esta forma: {"start":"hh:mm:ss ou null","finishes":[{"read":"nome como está escrito","boatId":"id da lista ou null","finish":"hh:mm:ss ou null","code":"FIN|DNF|DNS|RET|OCS|BFD|UFD|DSQ"}],"notes":"observações curtas em português"}
-Regras: ordem = ordem de chegada. Os nomes podem estar escritos meia linha acima ou abaixo da hora: emparelha pela ordem. Usa a hora de chegada, não o tempo de regata. Barcos na zona de "desclassificados"/siglas recebem a sigla (code) e finish null. Ignora listas de verificação ao lado. Se a hora tiver só minutos e segundos, completa com a hora da linha anterior.
-Lista de barcos (id | nome | outros nomes | vela | tipo):
+Regras: ordem = ordem de chegada. Os nomes podem estar escritos meia linha acima ou abaixo da hora: emparelha pela ordem. Usa a hora de chegada, não o tempo de regata. Barcos na zona de "desclassificados"/siglas recebem a sigla (code) e finish null. Ignora listas de verificação ao lado. Se a hora tiver só minutos e segundos, completa com a hora da linha anterior. A folha pode identificar o barco pelo nome, número de vela ou skipper.
+Barcos inscritos (id | nome | outros nomes | vela | tipo | skipper):
 ${fleet}`;
     const res = await SAMPLE.json(prompt, { images: [blob], modelTier: 'complex' });
     const list = (res && res.finishes) || [];
@@ -364,16 +502,23 @@ async function shrink(file) {
 }
 
 /* ---------- exportação ---------- */
+function ctxSeries(groupKey) {
+  if (ctxKind() === 'e') return eventStandings(ctxId(), groupKey);
+  const cid = ctxId(), c = S.champs[cid], rs = champRaces(cid);
+  return { rs, rules: c, st: E.seriesStandings(rs, dbState(), { champ: c, filter: groupFilter(groupKey, c), boats: champEntries(cid) }) };
+}
+function ctxName() { return ctxKind() === 'c' ? S.champs[ctxId()].name : S.events[ctxId()].name; }
 function standingsText(st, races, title) {
   let t = title + '\n' + '#  Barco'.padEnd(22) + 'Líq  Tot  ' + races.map((r, i) => 'R' + (i + 1)).join(' ') + '\n';
   st.table.forEach(r => { t += String(r.rank).padEnd(3) + r.name.padEnd(19) + ptsF(r.net).padStart(4) + ptsF(r.total).padStart(5) + '  ' + r.cells.map(c => (c.disc ? '(' : '') + (c.code ? c.code + ' ' : '') + ptsF(c.pts) + (c.disc ? ')' : '')).join(' ') + '\n'; });
   return t;
 }
 function standingsHTML() {
-  const c = champ(), races = champRaces();
-  const blocks = groupsOf(c).map(g => { const st = E.seriesStandings(races, dbState(), { champ: c, filter: groupFilter(g.k) }); return st.table.length ? `<h2>${esc(g.t)}</h2>${standingsTable(st, races).replace(/<a [^>]*>|<\/a>/g, '')}<p>DNC = ${st.dnc} · ${st.nDiscards} descarte(s)</p>` : ''; }).join('');
+  const rules = ctxRules();
+  const blocks = groupsOf(rules).map(g => { const { st, rs } = ctxSeries(g.k); return st.table.length ? `<h2>${esc(g.t)}</h2>${standingsTable(st, rs, rules).replace(/<a [^>]*>|<\/a>/g, '')}<p>DNC = ${st.dnc} · ${st.nDiscards} descarte(s)</p>` : ''; }).join('');
   const css = Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
-  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><title>${esc(c.name)}</title><style>${css} body{padding:16px} .sticky{position:static}</style></head><body><h1>${esc(c.name)}</h1><p>${esc(c.club || '')} · ${races.length} regatas · gerado ${dPT(today())}</p>${blocks}</body></html>`;
+  const n = ctxSeries('GERAL').rs.length;
+  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><title>${esc(ctxName())}</title><style>${css} body{padding:16px} .sticky{position:static}</style></head><body><h1>${esc(ctxName())}</h1><p>${n} regatas · gerado ${dPT(today())}</p>${blocks}</body></html>`;
 }
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copiado.'); } catch (_) { dialog('Copiar', `<textarea rows="14" style="width:100%;font-family:monospace;font-size:12px">${esc(text)}</textarea>`); } }
 
@@ -381,14 +526,24 @@ async function copy(text) { try { await navigator.clipboard.writeText(text); toa
 async function onClick(e) {
   const t = e.target.closest('[data-a]'); if (!t) return;
   const a = t.dataset.a, id = t.dataset.id;
+  const confirmOnce = (label) => { if (t.dataset.confirm === '1') return true; t.dataset.confirm = '1'; t.textContent = label || 'Confirmar: apagar de vez'; return false; };
   if (a === 'grp') { S.group = t.dataset.k; render(); }
   else if (a === 'rgrp') { S.raceGroup = t.dataset.k; render(); }
-  else if (a === 'newRace') openRaceForm(null);
-  else if (a === 'editRace') openRaceForm(id);
-  else if (a === 'newBoat') openBoatForm(null);
-  else if (a === 'editBoat') openBoatForm(id);
+  else if (a === 'egrp') { S.evGroup = t.dataset.k; render(); }
+  else if (a === 'fleetTab') { S.fleetTab = t.dataset.k; render(); }
   else if (a === 'newChamp') openChampForm(null);
-  else if (a === 'editChamp') openChampForm(S.champId);
+  else if (a === 'editChamp') openChampForm(id);
+  else if (a === 'newEvent') openEventForm(null, t.dataset.c || null);
+  else if (a === 'editEvent') openEventForm(id);
+  else if (a === 'entries') openEntriesForm(id);
+  else if (a === 'newRace') openRaceForm(null, t.dataset.e);
+  else if (a === 'editRace') openRaceForm(id);
+  else if (a === 'newBoat') openBoatForm(null, t.dataset.e || '');
+  else if (a === 'editBoat') openBoatForm(id);
+  else if (a === 'newSkipper') openSkipperForm(null);
+  else if (a === 'editSkipper') openSkipperForm(id);
+  else if (a === 'newClub') openClubForm(null);
+  else if (a === 'editClub') openClubForm(id);
   else if (a === 'editFin') openFinishEditor(id);
   else if (a === 'addCert') openCertForm(id, 'orc');
   else if (a === 'certTab') openCertForm(t.dataset.b, t.dataset.k);
@@ -400,57 +555,112 @@ async function onClick(e) {
     const rows = S.edit.rows.filter(r => r.boatId).map(r => { const o = { boatId: r.boatId }; if (r.code && r.code !== 'FIN') o.code = r.code; else o.finish = r.finish; if (r.code && r.code !== 'FIN' && r.finish) o.finish = r.finish; return o; });
     const ids = rows.map(r => r.boatId); if (new Set(ids).size !== ids.length) { toast('Há barcos repetidos.'); return; }
     const bad = rows.find(r => !r.code && E.secs(r.finish) == null); if (bad) { toast('Falta a hora de ' + S.boats[bad.boatId].name + '.'); return; }
-    const r = JSON.parse(JSON.stringify(S.races[S.edit.id])); r.finishes = rows;
+    const r = clone(S.races[S.edit.id]); r.finishes = rows;
     if (await save('races', S.edit.id, r)) { toast('Chegadas gravadas.'); closeDlg(); }
   }
+  else if (a === 'entriesSave') {
+    const ev = clone(S.events[S.edit.id]); ev.entries = [...S.edit.set].filter(b => S.boats[b]).sort();
+    if (await save('events', S.edit.id, ev)) { toast('Inscrições gravadas.'); closeDlg(); }
+  }
+  else if (a === 'champSave') {
+    const c = Object.assign(id ? clone(S.champs[id]) : {}, { name: v('cName'), season: v('cSeason'), clubId: v('cClub') }, readRules());
+    if (!c.name) { toast('O campeonato precisa de nome.'); return; }
+    const cid = id || uniqueId('champs', slug(c.name + ' ' + c.season));
+    if (await save('champs', cid, c)) { S.ctx = 'c:' + cid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {} closeDlg(); pickCtx(); render(); }
+  }
+  else if (a === 'champDel') {
+    if (champEvents(id).length) { toast('O campeonato tem provas: mova-as ou apague-as primeiro.'); return; }
+    if (!confirmOnce()) return;
+    if (await del('champs', id)) { S.ctx = null; closeDlg(); pickCtx(); render(); }
+  }
+  else if (a === 'eventSave') {
+    if (!v('eName') || !v('eFrom')) { toast('Preencha o nome e a data de início.'); return; }
+    const ev = Object.assign(id ? clone(S.events[id]) : { entries: [] }, { name: v('eName'), champ: v('eChamp') || null, dateFrom: v('eFrom'), dateTo: v('eTo') || v('eFrom'), clubId: v('eClub'), venue: v('eVenue') });
+    if (ev.dateTo < ev.dateFrom) { toast('A data de fim é anterior à de início.'); return; }
+    if (!ev.champ) Object.assign(ev, readRules());
+    const eid = id || uniqueId('events', slug(ev.name + ' ' + ev.dateFrom.slice(0, 4)));
+    if (await save('events', eid, ev)) { S.ctx = ev.champ ? 'c:' + ev.champ : 'e:' + eid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {} closeDlg(); pickCtx(); location.hash = 'prova-' + eid; }
+  }
+  else if (a === 'eventDel') {
+    if (eventRaces(id).length) { toast('A prova tem regatas: apague-as primeiro.'); return; }
+    if (!confirmOnce()) return;
+    if (await del('events', id)) { closeDlg(); pickCtx(); location.hash = 'provas'; }
+  }
   else if (a === 'raceSave') {
-    if (!v('rName') || !v('rDate') || E.secs(v('rStart')) == null) { toast('Preencha nome, data e hora de largada.'); return; }
-    const base = id ? JSON.parse(JSON.stringify(S.races[id])) : { champ: S.champId, finishes: [] };
-    Object.assign(base, { name: v('rName'), event: v('rEvent') || v('rName'), date: v('rDate'), start: v('rStart').replace(/[.,h]/g, ':'), system: v('rSys'), distance: v('rDist') ? Number(v('rDist').replace(',', '.')) : null, timeLimit: v('rLim').replace(/[.,h]/g, ':'), status: v('rStatus') });
-    const rid = id || (S.champId + '-' + slug(v('rName')) + '-' + v('rDate'));
+    if (!v('rName') || !v('rDate') || !v('rEvent') || E.secs(v('rStart')) == null) { toast('Preencha nome, prova, data e hora de largada.'); return; }
+    if (v('rSys').startsWith('ToD') && !v('rDist')) { toast('Para ToD indique a distância do percurso.'); return; }
+    const base = id ? clone(S.races[id]) : { finishes: [] };
+    Object.assign(base, { name: v('rName'), event: v('rEvent'), date: v('rDate'), start: v('rStart').replace(/[.,h]/g, ':'), system: v('rSys'), distance: v('rDist') ? Number(v('rDist').replace(',', '.')) : null, timeLimit: v('rLim').replace(/[.,h]/g, ':'), status: v('rStatus') });
+    const rid = id || uniqueId('races', slug(v('rEvent') + '-' + v('rName')));
     if (await save('races', rid, base)) {
-      if (!id) { const c = JSON.parse(JSON.stringify(champ())); c.order = (c.order || []).concat([rid]); await save('champs', S.champId, c); }
+      const ev = S.events[base.event];
+      if (ev && (base.date < ev.dateFrom || base.date > ev.dateTo)) { const e2 = clone(ev); if (base.date < e2.dateFrom) e2.dateFrom = base.date; if (base.date > e2.dateTo) e2.dateTo = base.date; await save('events', base.event, e2); }
       closeDlg(); location.hash = 'race-' + rid;
     }
   }
-  else if (a === 'raceDel') { if (t.dataset.confirm !== '1') { t.dataset.confirm = '1'; t.textContent = 'Confirmar: apagar de vez'; return; } if (await del('races', id)) { closeDlg(); location.hash = 'regatas'; } }
+  else if (a === 'raceDel') { if (!confirmOnce()) return; const eid = S.races[id].event; if (await del('races', id)) { closeDlg(); location.hash = 'prova-' + eid; } }
   else if (a === 'boatSave') {
     if (!v('bName')) { toast('O barco precisa de nome.'); return; }
-    const b = id ? JSON.parse(JSON.stringify(S.boats[id])) : { certs: [] };
-    Object.assign(b, { name: v('bName').toUpperCase(), sail: v('bSail'), type: v('bType'), club: v('bClub'), skipper: v('bSkip'), aka: v('bAka') ? v('bAka').split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [], div: v('bDiv'), note: $('#bNote').value.trim() });
+    let skipperId = v('bSkip');
+    if (skipperId === '__new') {
+      if (!v('skName')) { toast('Indique o nome do novo skipper.'); return; }
+      skipperId = uniqueId('skippers', slug(v('skName')));
+      if (!await save('skippers', skipperId, { name: v('skName'), license: v('skLic'), clubId: v('skClub') || v('bClub') })) return;
+    }
+    const b = id ? clone(S.boats[id]) : { certs: [] };
+    Object.assign(b, { name: v('bName').toUpperCase(), sail: v('bSail'), type: v('bType'), clubId: v('bClub'), skipperId, aka: v('bAka') ? v('bAka').split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [], div: v('bDiv'), note: $('#bNote').value.trim() });
     if (v('bCls')) b.classRef = v('bCls'); else delete b.classRef;
     const bid = id || slug(v('bName'));
     if (!id && S.boats[bid]) { toast('Já existe um barco com esse nome.'); return; }
-    if (await save('boats', bid, b)) { closeDlg(); location.hash = 'boat-' + bid; }
+    if (!await save('boats', bid, b)) return;
+    const enter = t.dataset.e;
+    if (!id && enter && S.events[enter]) { const ev = clone(S.events[enter]); ev.entries = [...new Set((ev.entries || []).concat([bid]))].sort(); await save('events', enter, ev); toast('Barco criado e inscrito.'); }
+    closeDlg(); location.hash = 'boat-' + bid;
   }
   else if (a === 'boatDel') {
     if (Object.values(S.races).some(r => (r.finishes || []).some(f => f.boatId === id))) { toast('Este barco tem regatas: não pode ser apagado.'); return; }
-    if (t.dataset.confirm !== '1') { t.dataset.confirm = '1'; t.textContent = 'Confirmar: apagar de vez'; return; }
+    if (Object.values(S.events).some(e => (e.entries || []).includes(id))) { toast('Este barco está inscrito em provas: retire as inscrições primeiro.'); return; }
+    if (!confirmOnce()) return;
     if (await del('boats', id)) { closeDlg(); location.hash = 'frota'; }
   }
-  else if (a === 'champSave') {
-    const c = id ? JSON.parse(JSON.stringify(S.champs[id])) : { order: [] };
-    const disc = v('cDisc').split(',').map(s => s.split(':').map(Number)).filter(p => p.length === 2 && !p.some(isNaN)).map(([u, n]) => ({ upTo: u, n })).sort((x, y) => x.upTo - y.upTo);
-    Object.assign(c, { name: v('cName'), season: v('cSeason'), club: v('cClub'), discards: disc, divLimits: { A: Number(v('cA').replace(',', '.')), B: Number(v('cB').replace(',', '.')) }, groups: v('cGroups').split(',').map(s => s.trim()).filter(Boolean), classGroups: [...document.querySelectorAll('.cCls:checked')].map(x => x.value) });
-    if (!c.name) { toast('O campeonato precisa de nome.'); return; }
-    const cid = id || slug(c.name);
-    if (await save('champs', cid, c)) { S.champId = cid; closeDlg(); pickChamp(); render(); }
+  else if (a === 'skipperSave') {
+    if (!v('sName')) { toast('O skipper precisa de nome.'); return; }
+    const s = Object.assign(id ? clone(S.skippers[id]) : {}, { name: v('sName'), clubId: v('sClub'), license: v('sLic') });
+    if (await save('skippers', id || uniqueId('skippers', slug(s.name)), s)) closeDlg();
+  }
+  else if (a === 'skipperDel') {
+    if (Object.values(S.boats).some(b => b.skipperId === id)) { toast('Este skipper está associado a barcos.'); return; }
+    if (!confirmOnce()) return;
+    if (await del('skippers', id)) closeDlg();
+  }
+  else if (a === 'clubSave') {
+    if (!v('clName')) { toast('O clube precisa de nome.'); return; }
+    const c = { name: v('clName'), short: v('clShort') };
+    if (await save('clubs', id || uniqueId('clubs', slug(c.short || c.name)), c)) { closeDlg(); pickCtx(); }
+  }
+  else if (a === 'clubDel') {
+    const used = Object.values(S.boats).some(b => b.clubId === id) || Object.values(S.skippers).some(s => s.clubId === id) || Object.values(S.events).some(e => e.clubId === id) || Object.values(S.champs).some(c => c.clubId === id);
+    if (used) { toast('Este clube está em uso.'); return; }
+    if (!confirmOnce()) return;
+    if (await del('clubs', id)) closeDlg();
   }
   else if (a === 'certDel') {
-    if (t.dataset.confirm !== '1') { t.dataset.confirm = '1'; t.textContent = 'apagar?'; return; }
-    const b = JSON.parse(JSON.stringify(S.boats[t.dataset.b])); b.certs.splice(+t.dataset.i, 1); await save('boats', t.dataset.b, b);
+    if (!confirmOnce('apagar?')) return;
+    const b = clone(S.boats[t.dataset.b]); b.certs.splice(+t.dataset.i, 1); await save('boats', t.dataset.b, b);
   }
   else if (a === 'catUse') {
     const r = S.catalog.rows.find(x => x[10] === t.dataset.ref); if (!r) return;
     const kind = t.dataset.k;
-    addCert(t.dataset.b, { from: v('cFrom') || r[5], kind, ToT_CL: r[7], ToT_WL: r[8], CDL: r[6], ref: r[10], src: (kind === 'copiado' ? 'copiado de ' : '') + `${r[0]} ${r[1]} ${r[3]} ${r[5].slice(0, 4)} ${r[4] === 'I' ? 'ORCi' : 'Club'} (${r[2]})` });
+    const c = { from: v('cFrom') || r[5], kind, ToT_CL: r[7], ToT_WL: r[8], CDL: r[6], ref: r[10], src: (kind === 'copiado' ? 'copiado de ' : '') + `${r[0]} ${r[1]} ${r[3]} ${r[5].slice(0, 4)} ${r[4] === 'I' ? 'ORCi' : 'Club'} (${r[2]})` };
+    if (r[11]) c.GPH = r[11];
+    addCert(t.dataset.b, c);
   }
   else if (a === 'certManual') {
     const n = x => x ? Number(x.replace(',', '.')) : null;
-    let CL = n(v('mCL')), WL = n(v('mWL')); const tCL = n(v('mTodCL')), tWL = n(v('mTodWL'));
+    let CL = n(v('mCL')), WL = n(v('mWL')); const tCL = n(v('mTodCL')), tWL = n(v('mTodWL')), gph = n(v('mGPH'));
     if (!CL && tCL) CL = Math.round(600 / tCL * 1e4) / 1e4; if (tWL) WL = Math.round(600 / tWL * 1e4) / 1e4;
-    if (!CL && !WL) { toast('Indique pelo menos um ToT ou ToD.'); return; }
-    const c = { from: v('mFrom'), kind: v('mKind'), src: v('mSrc') || v('mKind') }; if (CL) c.ToT_CL = CL; if (WL) c.ToT_WL = WL; if (tCL) c.ToD_CL = tCL; if (tWL) c.ToD_WL = tWL; if (n(v('mCDL'))) c.CDL = n(v('mCDL'));
+    if (!CL && !WL && !gph) { toast('Indique pelo menos um ToT, ToD ou GPH.'); return; }
+    const c = { from: v('mFrom'), kind: v('mKind'), src: v('mSrc') || v('mKind') }; if (CL) c.ToT_CL = CL; if (WL) c.ToT_WL = WL; if (tCL) c.ToD_CL = tCL; if (tWL) c.ToD_WL = tWL; if (gph) c.GPH = gph; if (n(v('mCDL'))) c.CDL = n(v('mCDL'));
     addCert(t.dataset.b, c);
   }
   else if (a === 'certDeriv') {
@@ -460,6 +670,7 @@ async function onClick(e) {
     const f = target / rc.ToT_CL, r4 = x => Math.round(x * 1e4) / 1e4;
     const c = { from, kind: 'derivado', ToT_CL: target, src: `derivado de ${ref.name} (${rc.src || ''}) × ${f.toFixed(5)}` };
     if (rc.ToT_WL) c.ToT_WL = r4(rc.ToT_WL * f);
+    if (rc.GPH) c.GPH = Math.round(rc.GPH / f * 10) / 10;
     addCert(t.dataset.b, c);
   }
   else if (a === 'copyRace') {
@@ -467,13 +678,13 @@ async function onClick(e) {
     copy(`${race.name} — ${dPT(race.date)} (${E.SYSTEMS[race.system]})\n` + rows.map(x => x.code ? `-  ${x.name}  ${x.code}  ${ptsF(x.pts)} pts` : `${x.pos}. ${x.name}  ${E.hms2(x.elapsed)}  corr ${E.hms2(x.corrected)}  +${E.hms(x.delta)}`).join('\n'));
   }
   else if (a === 'export') {
-    const races = champRaces(), c = champ();
-    dialog('Exportar classificação', `<div class="small muted">Para enviar aos velejadores: partilhe esta página (só leitura para quem não é editor), copie o texto ou descarregue um ficheiro HTML para imprimir ou publicar.</div>
-      <div class="row"><button class="btn" data-a="expTxt">Copiar texto (${esc(groupsOf(c).find(g => g.k === S.group) ? groupsOf(c).find(g => g.k === S.group).t : 'Geral')})</button>${DOWN || STATIC ? '<button class="btn pri" data-a="expHtml">Descarregar HTML completo</button>' : ''}</div>`);
+    const rules = ctxRules(), g = groupsOf(rules).find(x => x.k === S.group) || { t: 'Geral' };
+    dialog('Exportar classificação', `<div class="small muted">Para enviar aos velejadores: ${STATIC ? 'partilhe o endereço deste site' : 'publique no site público'}, copie o texto ou descarregue um ficheiro HTML para imprimir ou publicar.</div>
+      <div class="row"><button class="btn" data-a="expTxt">Copiar texto (${esc(g.t)})</button>${DOWN || STATIC ? '<button class="btn pri" data-a="expHtml">Descarregar HTML completo</button>' : ''}</div>`);
   }
-  else if (a === 'expTxt') { const races = champRaces(), c = champ(); const k = S.group === 'PROVAS' ? 'GERAL' : S.group; copy(standingsText(E.seriesStandings(races, dbState(), { champ: c, filter: groupFilter(k) }), races, c.name + ' — ' + (groupsOf(c).find(g => g.k === k) || { t: 'Geral' }).t)); }
-  else if (a === 'expHtml' && STATIC) downloadFile(slug(champ().name) + '.html', standingsHTML());
-  else if (a === 'expHtml') { try { await DOWN.save({ filename: slug(champ().name) + '.html', data: standingsHTML() }); } catch (_) { toast('Descarga cancelada.'); } }
+  else if (a === 'expTxt') { const k = S.group === 'PROVAS' ? 'GERAL' : S.group; const { st, rs, rules } = ctxSeries(k); copy(standingsText(st, rs, ctxName() + ' — ' + (groupsOf(rules).find(g => g.k === k) || { t: 'Geral' }).t)); }
+  else if (a === 'expHtml' && STATIC) downloadFile(slug(ctxName()) + '.html', standingsHTML());
+  else if (a === 'expHtml') { try { await DOWN.save({ filename: slug(ctxName()) + '.html', data: standingsHTML() }); } catch (_) { toast('Descarga cancelada.'); } }
 }
 document.addEventListener('input', e => { if (e.target.id === 'fleetQ') { S.fleetQ = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#fleetQ'); q.focus(); q.setSelectionRange(pos, pos); } });
 document.addEventListener('change', async e => {
@@ -482,7 +693,7 @@ document.addEventListener('change', async e => {
   const id = e.target.dataset.id; toast('A enviar fotografia…');
   try {
     const up = await ASSETS.upload(await shrink(e.target.files[0]));
-    const r = JSON.parse(JSON.stringify(S.races[id])); r.photos = (r.photos || []).concat([up.id]);
+    const r = clone(S.races[id]); r.photos = (r.photos || []).concat([up.id]);
     if (await save('races', id, r)) toast('Fotografia guardada.');
   } catch (err) { toast('Não foi possível guardar a foto (' + (err.code || err.message) + ').'); }
 });

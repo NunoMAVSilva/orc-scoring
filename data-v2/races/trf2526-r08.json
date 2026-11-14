@@ -1,0 +1,57 @@
+{
+  "date": "2026-05-30",
+  "finishes": [
+    {
+      "boatId": "too-much",
+      "finish": "14:41:22"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "14:44:46"
+    },
+    {
+      "boatId": "choque",
+      "finish": "14:44:55"
+    },
+    {
+      "boatId": "troton",
+      "finish": "14:45:47"
+    },
+    {
+      "boatId": "magano",
+      "finish": "14:46:18"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "14:51:33"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "14:51:41"
+    },
+    {
+      "boatId": "tita",
+      "finish": "14:53:36"
+    },
+    {
+      "boatId": "javali-sailing",
+      "finish": "15:09:53"
+    },
+    {
+      "boatId": "sambuca",
+      "code": "DNS",
+      "finish": ""
+    },
+    {
+      "boatId": "berlenga",
+      "code": "DNS",
+      "finish": ""
+    }
+  ],
+  "name": "Caracóis R2",
+  "start": "13:45:00",
+  "status": "final",
+  "system": "ToT_WL",
+  "timeLimit": "15:15:00",
+  "event": "trf2526-regata-dos-caracois"
+}

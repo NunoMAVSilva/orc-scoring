@@ -1,0 +1,28 @@
+{
+  "certs": [
+    {
+      "CDL": 7.522,
+      "ToD_CL": 614.2,
+      "ToT_CL": 0.9769,
+      "ToT_WL": 0.8618,
+      "from": "2025-10-09",
+      "kind": "teste",
+      "src": "teste 2025"
+    },
+    {
+      "CDL": 7.522,
+      "ToD_CL": 617.5,
+      "ToT_CL": 0.9716,
+      "ToT_WL": 0.8573,
+      "from": "2026-05-01",
+      "kind": "orc",
+      "src": "POR 2026"
+    }
+  ],
+  "div": "SB",
+  "name": "TOO MUCH",
+  "sail": "POR 8630",
+  "type": "CORK 1720",
+  "clubId": "gcnfaro",
+  "skipperId": "nuno-valadas-da-silva"
+}

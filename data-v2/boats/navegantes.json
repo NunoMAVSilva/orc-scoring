@@ -1,0 +1,17 @@
+{
+  "certs": [
+    {
+      "ToD_CL": 733,
+      "ToT_CL": 0.8185,
+      "from": "2025-01-01",
+      "kind": "manual",
+      "src": "manual"
+    }
+  ],
+  "div": "C",
+  "name": "NAVEGANTES",
+  "sail": "",
+  "type": "SAILMAR 670",
+  "clubId": "gnolhao",
+  "skipperId": "goncalo-mestre"
+}

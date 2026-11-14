@@ -1,32 +1,28 @@
 # ORC Scoring
 
-Classificações ORC (ToT/ToD, pontuação baixa RRS Apêndice A, descartes, desempates A8) do Troféu Ria Formosa.
+Classificações ORC (ToT/ToD/GPH, pontuação baixa RRS Apêndice A, descartes, desempates A8).
 
-A app tem duas versões, que partilham o mesmo código (`docs/`):
+Estrutura: **Campeonato → Prova (evento, com inscritos) → Regatas**. Uma prova pode ser avulsa (sem campeonato, com regras próprias). As classificações só incluem barcos inscritos; inscritos sem resultado numa regata ficam DNC.
 
-| | App no Claude | Site público (GitHub Pages) |
-|---|---|---|
-| Endereço | claude.ai (artifact privado) | `https://<utilizador>.github.io/orc-scoring/` |
-| Editar regatas, barcos, fotos, ler folhas com o Claude | Sim | Não (só leitura) |
-| Logo próprio no separador e no ecrã inicial | Não (o claude.ai decide) | Sim (`docs/img/`) |
-| Dados | Base de dados do artifact | `docs/data/db.json` |
+| Pasta | O que é |
+|---|---|
+| `app/` | App de gestão, publicada no Claude (edição, fotos, leitura das folhas por IA). |
+| `docs/` | Site público no GitHub Pages: o mesmo código de `app/`, em modo só leitura, com `docs/data/db.json`. |
+| `data-v2/` | Última exportação da base de dados da app (uma pasta por coleção). |
+| `data-export/` | Cópia de segurança dos dados da versão 1 (antes da migração). |
 
-`app.js` deteta se está a correr dentro do Claude. Fora do Claude, carrega `data/db.json`, esconde os botões de edição e as fotografias, e o "Descarregar HTML" passa a usar uma descarga normal do browser.
+`app.js` deteta se está dentro do Claude. Fora do Claude lê `data/db.json`, esconde edição e fotos e mostra a hora da última atualização.
 
-## Publicar no GitHub Pages
+## Publicar resultados no site
 
-1. Juntar este código ao ramo `main`.
-2. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, ramo `main`, pasta `/docs`.
-3. Ao fim de um minuto o site fica em `https://<utilizador>.github.io/orc-scoring/`. No telemóvel, "Adicionar ao ecrã principal" usa o logo de `docs/img/`.
+1. Exportar as coleções `champs`, `events`, `races`, `boats`, `classes`, `clubs` e `skippers` da base de dados do artifact ORC Scoring para `data-v2/<coleção>/<id>.json` (substituindo o conteúdo anterior).
+2. `node scripts/build-db.mjs` — atualiza `docs/data/db.json` **só se os dados mudaram**.
+3. Se mudou, commit e push para `main`; o GitHub Pages publica em 1–2 minutos.
 
-## Atualizar os resultados do site
+## Alterar a app
 
-Continua a editar na app do Claude. Para levar os dados para o site:
-
-1. Exportar as coleções `boats`, `classes`, `champs` e `races` da base de dados do artifact para `data-export/<coleção>/<id>.json` (num Claude Code com acesso ao artifact basta pedir "exporta os dados da app ORC Scoring para o site").
-2. `node scripts/build-db.mjs` gera `docs/data/db.json`.
-3. Commit e push para `main`.
+Editar `app/`, testar, publicar no artifact e copiar para `docs/` (`rm -rf docs/*.js docs/*.css docs/index.html && cp app/*.js app/*.css app/index.html docs/`).
 
 ## Mudar o logo
 
-Substituir as imagens em `docs/img/` mantendo os nomes e tamanhos: `icon-64.png` (separador e cabeçalho), `apple-touch-icon.png` (iPhone, 180×180), `icon-192.png` e `icon-512.png` (Android / `manifest.json`).
+Substituir as imagens em `app/img/` e `docs/img/` mantendo os nomes: `icon-64.png`, `apple-touch-icon.png` (180×180), `icon-192.png`, `icon-512.png`.

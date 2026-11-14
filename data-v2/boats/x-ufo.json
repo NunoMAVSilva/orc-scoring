@@ -1,0 +1,20 @@
+{
+  "certs": [
+    {
+      "CDL": 7.059,
+      "ToD_CL": 627,
+      "ToT_CL": 0.9569,
+      "ToT_WL": 0.8495,
+      "from": "2025-01-01",
+      "kind": "copiado",
+      "src": "Chance SUI 2019"
+    }
+  ],
+  "div": "C",
+  "name": "X-UFO",
+  "note": "Helium 7.65 é sportboat - mantido em C por decisão (rever)",
+  "sail": "",
+  "type": "HELIUM 7.65",
+  "clubId": "gcnfaro",
+  "skipperId": "pedro-rodrigues"
+}
