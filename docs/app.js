@@ -489,9 +489,10 @@ function openBoatForm(id, enterEvent) {
   const draw = () => {
     const box = $('#certPick'); if (!box) return;
     const prev = touched ? (document.querySelector('input[name=certPick]:checked') || {}).value : null;
-    const { own, model } = certMatches(v('bName'), v('bSail'), v('bType'));
+    const { own, weak, model } = certMatches(v('bName'), v('bSail'), v('bType'));
     const opt = (r, k, label) => `<label class="item" style="cursor:pointer"><input type="radio" name="certPick" value="${k}:${esc(r[10])}"><div class="grow">${catLine(r)}</div><span class="chip ${k === 'orc' ? 'k-orc' : 'k-copiado'}">${label}</span></label>`;
-    box.innerHTML = (own.length ? `<div class="small"><b>Certificado próprio encontrado</b></div>${own.map(r => opt(r, 'orc', 'próprio')).join('')}` : (v('bName').length >= 3 || v('bSail').length >= 3 ? '<div class="small muted">Sem certificado ativo com este nome ou vela (pode ser de anos anteriores: Sailor Services).</div>' : ''))
+    box.innerHTML = (own.length ? `<div class="small"><b>Certificado próprio encontrado</b> (mesma vela, ou mesmo nome e modelo)</div>${own.map(r => opt(r, 'orc', 'próprio')).join('')}` : (v('bName').length >= 3 || v('bSail').length >= 3 ? '<div class="small muted">Sem certificado ativo deste barco (pode ser de anos anteriores: Sailor Services).</div>' : ''))
+      + (weak.length ? `<div class="small" style="margin-top:6px"><b>Mesmo nome, mas vela ou modelo diferentes</b> — confirme se é o mesmo barco</div>${weak.map(r => opt(r, 'orc', 'verificar')).join('')}` : '')
       + (model.length ? `<div class="small" style="margin-top:6px"><b>Mesmo modelo</b> — copiar como referência</div>${model.map(r => opt(r, 'copiado', 'copiar')).join('')}` : '')
       + `<label class="item" style="cursor:pointer"><input type="radio" name="certPick" value="none"><div class="grow"><div class="title">Sem certificado por agora</div><div class="meta">Adicione depois na página do barco (manual ou Sailor Services).</div></div></label>`;
     const want = prev && box.querySelector(`input[value="${CSS.escape(prev)}"]`) ? prev : own.length ? `orc:${own[0][10]}` : 'none';
@@ -553,17 +554,22 @@ function catSearch(boatId) {
     + (model.length ? `<h3 style="margin-top:8px">Mesmo modelo (${esc(b.type)}) — para copiar</h3>${model.map(line).join('')}` : '');
 }
 /* Correspondências na base ORC (certificados ativos, sobretudo 2026):
-   own = mesmo nome ou número de vela; model = mesmo modelo (para copiar). */
+   own = o próprio (mesma vela, ou mesmo nome e mesmo modelo); weak = mesmo nome mas vela/modelo diferente
+   (a verificar, nunca escolhido automaticamente); model = mesmo modelo (para copiar). */
 const digits = x => String(x || '').replace(/\D/g, '');
 function certMatches(name, sail, type) {
   const rows = (S.catalog && S.catalog.rows) || [];
   const n = norm(name), sl = norm(sail), sd = digits(sail), ty = norm(type);
   const rank = (a, b) => ((b[3] === 'POR') - (a[3] === 'POR')) || String(b[5]).localeCompare(String(a[5]));
   const sailHit = r => sl.length >= 3 && (norm(r[1]) === sl || (sd.length >= 3 && digits(r[1]) === sd && (!/[A-Z]/.test(sl.replace(/\d/g, '')) || norm(r[1]).startsWith(sl.replace(/\d.*/, '')))));
-  const own = rows.filter(r => (n.length >= 3 && norm(r[0]) === n) || sailHit(r)).sort(rank).slice(0, 10);
+  const sameType = r => ty.length >= 3 && norm(r[2]).length >= 2 && (norm(r[2]) === ty || norm(r[2]).includes(ty) || ty.includes(norm(r[2])));
+  const nameHit = r => n.length >= 3 && norm(r[0]) === n;
+  const own = rows.filter(r => sailHit(r) || (nameHit(r) && !sl && sameType(r))).sort(rank).slice(0, 10);
   const ownRefs = new Set(own.map(r => r[10]));
-  const model = ty.length >= 3 ? rows.filter(r => !ownRefs.has(r[10]) && norm(r[2]) && (norm(r[2]) === ty || norm(r[2]).includes(ty) || ty.includes(norm(r[2])))).sort(rank).slice(0, 15) : [];
-  return { own, model };
+  const weak = rows.filter(r => !ownRefs.has(r[10]) && nameHit(r)).sort(rank).slice(0, 10);
+  weak.forEach(r => ownRefs.add(r[10]));
+  const model = rows.filter(r => !ownRefs.has(r[10]) && sameType(r)).sort(rank).slice(0, 15);
+  return { own, weak, model };
 }
 function catCert(r, kind, from) {
   const c = { from: from || String(r[5]).slice(0, 4) + '-01-01', kind, ToT_CL: r[7], ToT_WL: r[8], CDL: r[6], ref: r[10], src: (kind === 'copiado' ? 'copiado de ' : '') + `${r[0]} ${r[1]} ${r[3]} ${String(r[5]).slice(0, 4)} ${r[4] === 'I' ? 'ORCi' : 'Club'} (${r[2]})` };
@@ -897,7 +903,7 @@ async function importEntries(file, eid) {
     const [rows] = await Promise.all([readSheetRows(file), loadCatalog()]);
     const list = parseEntries(rows).map(x => {
       const boatId = findBoat(x), m = boatId ? null : certMatches(x.name, x.sail, x.type);
-      return Object.assign(x, { boatId, cert: m && m.own[0] ? m.own[0][10] : null, modelN: m ? m.model.length : 0 });
+      return Object.assign(x, { boatId, cert: m && m.own[0] ? m.own[0][10] : null, modelN: m ? m.model.length + m.weak.length : 0 });
     });
     if (!list.length) throw new Error('o ficheiro não tem linhas com nome de barco');
     S.edit = { kind: 'import', id: eid, list };
@@ -911,6 +917,11 @@ async function importEntries(file, eid) {
   } catch (err) { dialog('Importar inscritos', `<div class="warn">Não foi possível importar: ${esc(err.message || err)}.</div><div class="small muted">Use um ficheiro .xlsx ou .csv com uma linha de títulos: Barco, Vela, Modelo, Skipper, Licença, Clube (só "Barco" é obrigatório).</div>`); }
 }
 async function confirmImport() {
+  if (S.importing) return;
+  S.importing = true; const btn = $('[data-a=impConfirm]'); if (btn) { btn.disabled = true; btn.textContent = 'A importar…'; }
+  try { await doImport(); } finally { S.importing = false; }
+}
+async function doImport() {
   const { id: eid, list } = S.edit;
   const chosen = [...document.querySelectorAll('.impChk:checked')].map(x => list[+x.dataset.i]);
   toast('A importar ' + chosen.length + ' barco(s)…');
