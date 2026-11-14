@@ -218,7 +218,7 @@ function viewEvent(eid, single) {
     const n = (r.finishes || []).length, nf = (r.finishes || []).filter(f => !f.code || f.code === 'FIN').length;
     return `<a class="item" href="#race-${esc(r.id)}"><div class="idx">R${i + 1}</div><div class="grow"><div class="title">${esc(r.name)}</div>
       <div class="meta">${dPT(r.date)} · ${r.start ? 'largada ' + esc(r.start.slice(0, 5)) : 'largada por ler'} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''}</div>
-      <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span></a>`;
+      <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span>${S.canEdit ? `<button class="btn sm" data-a="editRace" data-id="${esc(r.id)}">Editar</button>` : ''}</a>`;
   }).join('');
   const entries = (e.entries || []).filter(id => S.boats[id]).map(id => [id, S.boats[id]]).sort(byName);
   const tabs = groupsOf(rules);
@@ -262,14 +262,14 @@ function viewRace(id) {
   }).join('');
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
   return `<section class="row spread"><div><div class="small muted"><a href="#${champEvents(ev.champ).length > 1 ? 'prova-' + esc(race.event) : 'regatas'}">${champEvents(ev.champ).length > 1 ? esc(ev.name || 'Prova') : 'Regatas'}</a> · R${idx}</div><h1>${esc(race.name)}</h1></div>
-      <span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span></section>
+      <div class="row"><span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span>${S.canEdit ? `<button class="btn sm" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}</div></section>
     <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${race.start ? esc(race.start.slice(0, 5)) : '—'}</b><span>${race.start ? 'largada' : 'largada por ler'}</span></div>
       <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimitDur ? `<div class="kpi"><b>${esc(race.timeLimitDur.slice(0, 5))}</b><span>tempo limite</span></div>` : race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table></div>
     <p class="small muted">Siglas (DNF, DNS, RET…) = barcos na regata + 1. Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.date)}; toque no valor para ver a origem.</p>
-    <div class="row">${S.canEdit ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Dados da regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
+    <div class="row">${S.canEdit ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
     ${S.canEdit || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${S.canEdit ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
       ${S.canEdit && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
 }
@@ -443,7 +443,7 @@ function openEventForm(id, champId) {
 function openRaceForm(id, eventId) {
   const r = id ? S.races[id] : { event: eventId, date: (S.events[eventId] || {}).dateFrom || today(), start: '', system: 'ToT_CL', status: 'provisoria', finishes: [] };
   const evOpts = Object.entries(S.events).sort((a, b) => (b[1].dateFrom || '').localeCompare(a[1].dateFrom || '')).map(([k, e]) => [k, e.name + (e.champ && S.champs[e.champ] ? ' · ' + S.champs[e.champ].name : '')]);
-  dialog(id ? 'Dados da regata' : 'Nova regata', `<div class="grid-f">
+  dialog(id ? 'Editar regata' : 'Nova regata', `<div class="grid-f">
     ${field('rName', 'Nome da regata', r.name, 'placeholder="ex.: Regata 1"')}${sel('rEvent', 'Prova', r.event, evOpts)}
     ${field('rDate', 'Data', r.date, 'type="date"')}${field('rStart', 'Hora da largada (opcional — lida da folha)', r.start || '', 'placeholder="hh:mm:ss"')}
     ${sel('rSys', 'Sistema de pontuação', r.system, Object.entries(E.SYSTEMS))}${field('rDist', 'Distância do percurso (NM, para ToD)', r.distance || '', 'inputmode="decimal"')}
