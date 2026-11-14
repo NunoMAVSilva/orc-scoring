@@ -21,7 +21,7 @@ Estrutura: **Campeonato → Prova (evento, com inscritos) → Regatas**. Um camp
 
 ## Alterar a app
 
-Editar `app/`, testar, publicar no artifact e copiar para `docs/` (`rm -rf docs/*.js docs/*.css docs/index.html && cp app/*.js app/*.css app/index.html docs/`).
+Editar `app/`, testar, atualizar o número `?v=` dos ficheiros em `app/index.html` (evita cache), publicar no artifact e copiar para `docs/` (`cp app/*.js app/*.css app/index.html docs/`).
 
 ## Mudar o logo
 
