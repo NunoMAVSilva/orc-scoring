@@ -44,7 +44,8 @@ header.top .t { font-family: var(--font-display); font-size: 1.25rem; font-weigh
 header.top .ctx { margin-left: auto; min-width: 0; max-width: 62%; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 header.top .s { font-size: .78rem; opacity: .8; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 header.top select { max-width: 100%; background: transparent; color: var(--bg); border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 4px 6px; font-size: .85rem; }
-header.top select option { color: #0f2740; }
+header.top select { text-align: right; text-align-last: right; }
+header.top select option { color: #0f2740; text-align: left; }
 
 main { max-width: 980px; margin: 0 auto; padding: 14px 16px 96px; display: flex; flex-direction: column; gap: 14px; }
 nav.bottom { position: fixed; bottom: 0; left: 0; right: 0; z-index: 6; display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
