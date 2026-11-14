@@ -37,7 +37,9 @@ function dbState() { return { boats: S.boats, classes: S.classes }; }
 
 /* ---------- modelo ---------- */
 const sortRaces = list => list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
-function eventRaces(eid) { return sortRaces(Object.entries(S.races).filter(([, r]) => r.event === eid).map(([id, r]) => Object.assign({ id }, r))); }
+// regata com os inscritos da prova (para os pontos de penalização = inscritos + 1, RRS A5.2)
+function withEnt(id, r) { return Object.assign({ id }, r, { entrants: ((S.events[r.event] || {}).entries || []).slice() }); }
+function eventRaces(eid) { return sortRaces(Object.entries(S.races).filter(([, r]) => r.event === eid).map(([id, r]) => withEnt(id, r))); }
 function champEvents(cid) { return Object.entries(S.events).filter(([, e]) => e.champ === cid).sort((a, b) => (a[1].dateFrom || '').localeCompare(b[1].dateFrom || '')); }
 function champRaces(cid) { return sortRaces(champEvents(cid).flatMap(([eid]) => eventRaces(eid))); }
 function champEntries(cid) { return [...new Set(champEvents(cid).flatMap(([, e]) => e.entries || []))]; }
@@ -269,7 +271,7 @@ function viewEvent(eid, single) {
 function viewRace(id) {
   const r0 = S.races[id];
   if (!r0) return '<div class="empty">Regata não encontrada.</div>';
-  const race = Object.assign({ id }, r0), ev = S.events[race.event] || {}, rules = rulesOfRace(race);
+  const race = withEnt(id, r0), ev = S.events[race.event] || {}, rules = rulesOfRace(race);
   const idx = eventRaces(race.event).findIndex(x => x.id === id) + 1;
   const { problems } = E.scoreRace(race, dbState());
   const notEntered = (race.finishes || []).filter(f => S.boats[f.boatId] && !(ev.entries || []).includes(f.boatId)).map(f => S.boats[f.boatId].name);
@@ -294,7 +296,7 @@ function viewRace(id) {
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table></div>
-    <p class="small muted">Siglas (DNF, DNS, RET…) = barcos na regata + 1. Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.date)}; toque no valor para ver a origem.</p>
+    <p class="small muted">Siglas (DNF, DNS, RET…) = inscritos na prova + 1 (RRS A5.2). Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.date)}; toque no valor para ver a origem.</p>
     <div class="row">${S.canEdit ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
     ${S.canEdit || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${S.canEdit ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
       ${S.canEdit && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
@@ -425,7 +427,7 @@ function viewBoat(id) {
       <div class="small muted">Em cada regata usa-se o certificado em vigor nessa data. ToD costeiro = 600 ÷ ToT quando não indicado.</div>
       <div class="scroll"><table><thead><tr><th>Desde</th><th>Tipo</th><th class="n">ToT cost.</th><th class="n">ToT b/s</th><th class="n">ToD cost.</th><th class="n">GPH</th><th class="n">CDL</th><th>Origem</th>${S.canEdit && !b.classRef ? '<th></th>' : ''}</tr></thead><tbody>${certs.map(crow).join('') || '<tr><td colspan="9" class="muted">Sem certificados.</td></tr>'}</tbody></table></div></div>
     <div class="card"><h3>Provas inscritas</h3>${evs.map(([eid, e]) => `<a class="item" href="#prova-${esc(eid)}"><div class="grow"><div class="title">${esc(e.name)}</div><div class="meta">${evDates(e)}${e.champ && S.champs[e.champ] ? ' · ' + esc(S.champs[e.champ].name) : ''}</div></div></a>`).join('') || '<div class="muted small">Sem inscrições.</div>'}</div>
-    <div class="card"><h3>Regatas</h3>${races.map(([rid, r]) => { const res = E.raceResults(Object.assign({ id: rid }, r), dbState()).rows.find(x => x.boatId === id) || {}; return `<a class="item" href="#race-${esc(rid)}"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">${dPT(r.date)} · ${esc((S.events[r.event] || {}).name || '')}</div></div><b class="num">${res.code ? esc(res.code) : res.pos ? res.pos + 'º' : ''}</b></a>`; }).join('') || '<div class="muted small">Ainda sem regatas.</div>'}</div>`;
+    <div class="card"><h3>Regatas</h3>${races.map(([rid, r]) => { const res = E.raceResults(withEnt(rid, r), dbState()).rows.find(x => x.boatId === id) || {}; return `<a class="item" href="#race-${esc(rid)}"><div class="grow"><div class="title">${esc(r.name)}</div><div class="meta">${dPT(r.date)} · ${esc((S.events[r.event] || {}).name || '')}</div></div><b class="num">${res.code ? esc(res.code) : res.pos ? res.pos + 'º' : ''}</b></a>`; }).join('') || '<div class="muted small">Ainda sem regatas.</div>'}</div>`;
 }
 
 /* ---------- formulários ---------- */
@@ -922,7 +924,7 @@ async function onClick(e) {
     addCert(t.dataset.b, c);
   }
   else if (a === 'copyRace') {
-    const race = Object.assign({ id }, S.races[id]); const { rows } = E.raceResults(race, dbState());
+    const race = withEnt(id, S.races[id]); const { rows } = E.raceResults(race, dbState());
     copy(`${race.name} — ${dPT(race.date)} (${E.SYSTEMS[race.system]})\n` + rows.map(x => x.code ? `-  ${x.name}  ${x.code}  ${ptsF(x.pts)} pts` : `${x.pos}. ${x.name}  ${E.hms2(x.elapsed)}  corr ${E.hms2(x.corrected)}  +${E.hms(x.delta)}`).join('\n'));
   }
   else if (a === 'export') {
