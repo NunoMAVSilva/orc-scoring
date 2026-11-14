@@ -213,7 +213,7 @@ function viewEvent(eid, single) {
       <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span></a>`;
   }).join('');
   const entries = (e.entries || []).filter(id => S.boats[id]).map(id => [id, S.boats[id]]).sort(byName);
-  const entryRows = entries.map(([id, b]) => `<tr><td class="boat"><a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span></td><td>${esc(skipperName(b.skipperId))}</td><td>${esc(clubShort(b.clubId))}</td></tr>`).join('');
+  const entryRows = entries.map(([id, b]) => `<tr><td class="boat"><a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span></td><td>${esc(skipperName(b.skipperId))}</td><td>${esc(clubShort(b.clubId))}</td><td>${E.certAt(b, e.dateFrom || today(), dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td></tr>`).join('');
   const tabs = groupsOf(rules);
   if (!tabs.find(t => t.k === S.evGroup)) S.evGroup = 'GERAL';
   const { st } = eventStandings(eid, S.evGroup);
@@ -230,7 +230,7 @@ function viewEvent(eid, single) {
       <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
       ${standingsTable(st, rs, rules)}</div>`}
     <div class="card"><div class="row spread"><h3>Inscritos (${entries.length})</h3>${S.canEdit ? `<button class="btn sm pri" data-a="entries" data-id="${esc(eid)}">Gerir inscrições</button>` : ''}</div>
-      ${entries.length ? `<div class="scroll"><table><thead><tr><th>Barco</th><th>Skipper</th><th>Clube</th></tr></thead><tbody>${entryRows}</tbody></table></div>` : '<div class="small muted">Ainda sem inscritos.</div>'}</div>`;
+      ${entries.length ? `<div class="scroll"><table><thead><tr><th>Barco</th><th>Skipper</th><th>Clube</th><th>Cert.</th></tr></thead><tbody>${entryRows}</tbody></table></div>` : '<div class="small muted">Ainda sem inscritos.</div>'}</div>`;
 }
 
 /* ---------- regata ---------- */
@@ -414,6 +414,7 @@ function drawEntries() {
   const rows = list.map(([id, b]) => `<label class="item" style="cursor:pointer"><input type="checkbox" class="entChk" value="${esc(id)}" ${ed.set.has(id) ? 'checked' : ''} ${raced.has(id) && ed.set.has(id) ? 'disabled title="Tem resultados nesta prova"' : ''}><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}${raced.has(id) ? ' · com resultados' : ''}</div></div></label>`).join('');
   dialog('Inscrições · ' + S.events[ed.id].name, `<div class="row spread"><span class="small muted">${ed.set.size} inscritos</span><button class="btn sm" data-a="newBoat" data-e="${esc(ed.id)}">+ Novo barco</button></div>
     <div class="small muted">Só os barcos marcados entram nesta prova (classificações, chegadas e leitura da folha).</div>
+    <div class="row"><label class="btn sm" for="impFile">Importar lista (Excel/CSV)</label><input id="impFile" type="file" accept=".xlsx,.xls,.csv,.ods" data-e="${esc(ed.id)}" hidden><span class="small muted">Colunas: Barco, Vela, Modelo, Skipper, Licença, Clube</span></div>
     ${others.length ? `<div class="row"><select id="entCopy" style="flex:1;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">${others.map(([eid, e]) => `<option value="${esc(eid)}">${esc(e.name)} (${e.entries.length})</option>`).join('')}</select><button class="btn sm" data-a="entCopy">Copiar inscritos</button></div>` : ''}
     <input id="entQ" value="${esc(ed.q || '')}" placeholder="Procurar barco na base de dados" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
     <div class="list">${rows || '<div class="small muted">Nenhum barco.</div>'}</div>
@@ -421,18 +422,44 @@ function drawEntries() {
   $('#dlgB').onchange = ev => { if (ev.target.classList.contains('entChk')) { ev.target.checked ? ed.set.add(ev.target.value) : ed.set.delete(ev.target.value); } };
   $('#dlgB').oninput = ev => { if (ev.target.id === 'entQ') { ed.q = ev.target.value; const pos = ev.target.selectionStart; drawEntries(); const i = $('#entQ'); i.focus(); i.setSelectionRange(pos, pos); } };
 }
+function findSkipper(name) { const n = norm(name); return n ? (Object.entries(S.skippers).find(([, x]) => norm(x.name) === n) || [null])[0] : null; }
 function openBoatForm(id, enterEvent) {
   const b = id ? S.boats[id] : { name: '', certs: [], clubId: '', skipperId: '' };
-  const skOpts = [['', '— sem skipper —']].concat(Object.entries(S.skippers).sort(byName).map(([k, s]) => [k, s.name + (s.clubId ? ' (' + clubShort(s.clubId) + ')' : '')])).concat([['__new', '+ Novo skipper…']]);
-  dialog(id ? 'Editar barco' : 'Novo barco', `<div class="grid-f">${field('bName', 'Nome', b.name)}${field('bSail', 'Número de vela', b.sail)}${field('bType', 'Tipo / modelo', b.type)}
-    ${sel('bClub', 'Clube do barco', b.clubId, clubOpts())}${sel('bSkip', 'Skipper', b.skipperId || '', skOpts)}</div>
-    <div class="grid-f" id="newSk" hidden>${field('skName', 'Nome do novo skipper', '')}${field('skLic', 'Nº licença desportiva (opcional)', '')}${sel('skClub', 'Clube do skipper', b.clubId, clubOpts())}</div>
-    <div class="grid-f">${field('bAka', 'Outros nomes (separados por vírgula)', (b.aka || []).join(', '))}
+  const isNew = !id, needCert = isNew || (!b.classRef && !(b.certs || []).length);
+  dialog(id ? 'Editar barco' : 'Novo barco', `<div class="grid-f">${field('bName', 'Nome', b.name)}${field('bSail', 'Número de vela', b.sail, 'placeholder="ex.: POR 1234"')}${field('bType', 'Tipo / modelo', b.type, 'placeholder="ex.: First 31.7"')}
+    ${sel('bClub', 'Clube do barco', b.clubId, clubOpts())}
+    ${field('bSkipName', 'Skipper (escreva o nome)', skipperName(b.skipperId), 'list="skList" autocomplete="off"')}<datalist id="skList">${Object.values(S.skippers).sort((x, y) => x.name.localeCompare(y.name)).map(x => `<option value="${esc(x.name)}">${esc(clubShort(x.clubId))}</option>`).join('')}</datalist></div>
+    <div class="small muted" id="skHint"></div>
+    <div class="grid-f" id="newSk" hidden>${field('skLic', 'Nº licença desportiva do novo skipper (opcional)', '')}${sel('skClub', 'Clube do skipper', b.clubId, clubOpts())}</div>
+    ${needCert ? '<div class="card" style="padding:10px"><h3>Certificado</h3><div class="small muted">Procura automática na base ORC (certificados ativos) pelo nome, vela e modelo.</div><div id="certPick" class="list"></div></div>' : ''}
+    <details><summary class="small">Mais opções</summary><div class="grid-f" style="margin-top:8px">${field('bAka', 'Outros nomes (separados por vírgula)', (b.aka || []).join(', '))}
     ${sel('bDiv', 'Divisão', b.div || '', [['', 'Automática (CDL)'], 'A', 'B', 'C', 'SB'])}${sel('bCls', 'Monotipia (rating da classe)', b.classRef || '', [['', '— não —']].concat(Object.entries(S.classes).map(([k, c]) => [k, c.name])))}
-    <label class="f" for="bNote" style="flex-basis:100%">Notas<textarea id="bNote" rows="2">${esc(b.note || '')}</textarea></label></div>
-    <div class="small muted">${id ? '' : 'Depois de gravar, adicione o certificado de medição na página do barco.'}</div>
+    <label class="f" for="bNote" style="flex-basis:100%">Notas<textarea id="bNote" rows="2">${esc(b.note || '')}</textarea></label></div></details>
     <div class="row spread">${delBtn('boatDel', id, 'Apagar barco')}<button class="btn pri" data-a="boatSave" data-id="${esc(id || '')}" data-e="${esc(enterEvent || '')}">Gravar</button></div>`);
-  $('#bSkip').onchange = () => { $('#newSk').hidden = $('#bSkip').value !== '__new'; };
+  const skHint = () => {
+    const nm = v('bSkipName'), sid = findSkipper(nm);
+    $('#newSk').hidden = !nm || !!sid;
+    $('#skHint').textContent = !nm ? '' : sid ? `Skipper existente: ${S.skippers[sid].name}${S.skippers[sid].clubId ? ' (' + clubShort(S.skippers[sid].clubId) + ')' : ''}${S.skippers[sid].license ? ' · licença ' + S.skippers[sid].license : ''}` : 'Skipper novo: será criado ao gravar.';
+  };
+  $('#bSkipName').oninput = skHint; skHint();
+  if (!needCert) return;
+  let timer = null, touched = false;
+  const draw = () => {
+    const box = $('#certPick'); if (!box) return;
+    const prev = touched ? (document.querySelector('input[name=certPick]:checked') || {}).value : null;
+    const { own, model } = certMatches(v('bName'), v('bSail'), v('bType'));
+    const opt = (r, k, label) => `<label class="item" style="cursor:pointer"><input type="radio" name="certPick" value="${k}:${esc(r[10])}"><div class="grow">${catLine(r)}</div><span class="chip ${k === 'orc' ? 'k-orc' : 'k-copiado'}">${label}</span></label>`;
+    box.innerHTML = (own.length ? `<div class="small"><b>Certificado próprio encontrado</b></div>${own.map(r => opt(r, 'orc', 'próprio')).join('')}` : (v('bName').length >= 3 || v('bSail').length >= 3 ? '<div class="small muted">Sem certificado ativo com este nome ou vela (pode ser de anos anteriores: Sailor Services).</div>' : ''))
+      + (model.length ? `<div class="small" style="margin-top:6px"><b>Mesmo modelo</b> — copiar como referência</div>${model.map(r => opt(r, 'copiado', 'copiar')).join('')}` : '')
+      + `<label class="item" style="cursor:pointer"><input type="radio" name="certPick" value="none"><div class="grow"><div class="title">Sem certificado por agora</div><div class="meta">Adicione depois na página do barco (manual ou Sailor Services).</div></div></label>`;
+    const want = prev && box.querySelector(`input[value="${CSS.escape(prev)}"]`) ? prev : own.length ? `orc:${own[0][10]}` : 'none';
+    const el = box.querySelector(`input[value="${CSS.escape(want)}"]`); if (el) el.checked = true;
+  };
+  const later = () => { clearTimeout(timer); timer = setTimeout(draw, 250); };
+  ['bName', 'bSail', 'bType'].forEach(k => { $('#' + k).addEventListener('input', later); });
+  $('#certPick').addEventListener('change', () => { touched = true; });
+  $('#certPick').innerHTML = '<div class="small muted">A carregar a base ORC…</div>';
+  loadCatalog().then(draw);
 }
 function openSkipperForm(id) {
   const s = id ? S.skippers[id] : { name: '', clubId: '', license: '' };
@@ -452,7 +479,7 @@ function openCertForm(boatId, tab) {
   let body = '';
   if (tab === 'orc') body = `<div class="info small">Certificados ORC ativos de todos os países (base de dados ORC, atualizada a ${esc(S.catalog ? S.catalog.built : '…')}). Para anos anteriores use o Sailor Services e introduza à mão.</div>
      <input id="catQ" placeholder="Nome, número de vela ou modelo (ex.: Hanse 400)" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
-     ${field('cFrom', 'Válido a partir de', today(), 'type="date"')}<div id="catRes" class="list"></div>`;
+     ${field('cFrom', 'Válido a partir de (vazio = 1 de janeiro do ano do certificado)', '', 'type="date"')}<div id="catRes" class="list"></div>`;
   else if (tab === 'manual') body = `<div class="grid-f">${field('mFrom', 'Válido a partir de', today(), 'type="date"')}${sel('mKind', 'Tipo', 'manual', [['orc', 'Certificado ORC próprio'], ['teste', 'Certificado de teste'], ['copiado', 'Copiado de barco semelhante'], ['manual', 'Atribuído manualmente']])}
      ${field('mCL', 'ToT costeiro', '', 'inputmode="decimal"')}${field('mWL', 'ToT barl./sotav.', '', 'inputmode="decimal"')}${field('mTodCL', 'ToD costeiro (s/NM)', '', 'inputmode="decimal"')}${field('mTodWL', 'ToD barl./sotav. (s/NM)', '', 'inputmode="decimal"')}
      ${field('mGPH', 'GPH (s/NM)', '', 'inputmode="decimal"')}${field('mCDL', 'CDL', '', 'inputmode="decimal"')}${field('mSrc', 'Origem (barco, país, ano)', '')}</div>
@@ -476,9 +503,34 @@ function catSearch(boatId) {
   const q = norm($('#catQ').value); const out = $('#catRes'); if (!out) return;
   if (q.length < 3) { out.innerHTML = '<div class="small muted">Escreva pelo menos 3 caracteres.</div>'; return; }
   const hits = S.catalog.rows.filter(r => norm(r[0]).includes(q) || norm(r[1]).includes(q) || norm(r[2]).includes(q)).slice(0, 60);
-  out.innerHTML = hits.map(r => `<div class="item"><div class="grow"><div class="title">${esc(r[0])} <span class="chip">${esc(r[3])}</span> <span class="chip">${r[4] === 'I' ? 'ORCi' : 'Club'}</span>${r[9] ? ' <span class="chip div-SB">SB</span>' : ''}</div>
-    <div class="meta">${esc(r[1])} · ${esc(r[2])} · emitido ${dPT(r[5])}</div><div class="meta num">ToT cost. ${fmt4(r[7])} · b/s ${fmt4(r[8])} · GPH ${fmt1(r[11])} · CDL ${r[6]}</div></div>
-    <div class="row" style="flex-direction:column;align-items:stretch"><button class="btn sm pri" data-a="catUse" data-b="${esc(boatId)}" data-ref="${esc(r[10])}" data-k="orc">Próprio</button><button class="btn sm" data-a="catUse" data-b="${esc(boatId)}" data-ref="${esc(r[10])}" data-k="copiado">Copiar</button></div></div>`).join('') || '<div class="small muted">Nenhum certificado ativo encontrado.</div>';
+  const b = S.boats[boatId] || {}, refs = new Set(hits.map(r => r[10]));
+  const model = certMatches('', '', b.type).model.filter(r => !refs.has(r[10]));
+  const line = r => `<div class="item"><div class="grow">${catLine(r)}</div>
+    <div class="row" style="flex-direction:column;align-items:stretch"><button class="btn sm pri" data-a="catUse" data-b="${esc(boatId)}" data-ref="${esc(r[10])}" data-k="orc">Próprio</button><button class="btn sm" data-a="catUse" data-b="${esc(boatId)}" data-ref="${esc(r[10])}" data-k="copiado">Copiar</button></div></div>`;
+  out.innerHTML = (hits.map(line).join('') || '<div class="small muted">Nenhum certificado ativo com este nome ou vela. Veja os barcos do mesmo modelo abaixo, ou procure no Sailor Services (anos anteriores) e use o separador Manual.</div>')
+    + (model.length ? `<h3 style="margin-top:8px">Mesmo modelo (${esc(b.type)}) — para copiar</h3>${model.map(line).join('')}` : '');
+}
+/* Correspondências na base ORC (certificados ativos, sobretudo 2026):
+   own = mesmo nome ou número de vela; model = mesmo modelo (para copiar). */
+const digits = x => String(x || '').replace(/\D/g, '');
+function certMatches(name, sail, type) {
+  const rows = (S.catalog && S.catalog.rows) || [];
+  const n = norm(name), sl = norm(sail), sd = digits(sail), ty = norm(type);
+  const rank = (a, b) => ((b[3] === 'POR') - (a[3] === 'POR')) || String(b[5]).localeCompare(String(a[5]));
+  const sailHit = r => sl.length >= 3 && (norm(r[1]) === sl || (sd.length >= 3 && digits(r[1]) === sd && (!/[A-Z]/.test(sl.replace(/\d/g, '')) || norm(r[1]).startsWith(sl.replace(/\d.*/, '')))));
+  const own = rows.filter(r => (n.length >= 3 && norm(r[0]) === n) || sailHit(r)).sort(rank).slice(0, 10);
+  const ownRefs = new Set(own.map(r => r[10]));
+  const model = ty.length >= 3 ? rows.filter(r => !ownRefs.has(r[10]) && norm(r[2]) && (norm(r[2]) === ty || norm(r[2]).includes(ty) || ty.includes(norm(r[2])))).sort(rank).slice(0, 15) : [];
+  return { own, model };
+}
+function catCert(r, kind, from) {
+  const c = { from: from || String(r[5]).slice(0, 4) + '-01-01', kind, ToT_CL: r[7], ToT_WL: r[8], CDL: r[6], ref: r[10], src: (kind === 'copiado' ? 'copiado de ' : '') + `${r[0]} ${r[1]} ${r[3]} ${String(r[5]).slice(0, 4)} ${r[4] === 'I' ? 'ORCi' : 'Club'} (${r[2]})` };
+  if (r[11]) c.GPH = r[11];
+  return c;
+}
+function catLine(r) {
+  return `<div class="title">${esc(r[0])} <span class="chip">${esc(r[3])}</span> <span class="chip">${r[4] === 'I' ? 'ORCi' : 'Club'}</span>${r[9] ? ' <span class="chip div-SB">SB</span>' : ''}</div>
+    <div class="meta">${esc(r[1])} · ${esc(r[2])} · emitido ${dPT(r[5])}</div><div class="meta num">ToT cost. ${fmt4(r[7])} · b/s ${fmt4(r[8])} · GPH ${fmt1(r[11])} · CDL ${r[6]}</div>`;
 }
 async function addCert(boatId, cert) {
   const b = clone(S.boats[boatId]);
@@ -612,6 +664,7 @@ async function onClick(e) {
     let n = 0; (src.entries || []).forEach(b => { if (S.boats[b] && !S.edit.set.has(b)) { S.edit.set.add(b); n++; } });
     S.edit.init = new Set(S.edit.set); toast(n + ' barco(s) adicionados.'); drawEntries();
   }
+  else if (a === 'impConfirm') confirmImport();
   else if (a === 'entriesSave') {
     const ev = clone(S.events[S.edit.id]); ev.entries = [...S.edit.set].filter(b => S.boats[b]).sort();
     if (await save('events', S.edit.id, ev)) { toast('Inscrições gravadas.'); closeDlg(); }
@@ -660,15 +713,21 @@ async function onClick(e) {
   else if (a === 'raceDel') { if (!confirmOnce()) return; const eid = S.races[id].event, multi = champEvents((S.events[eid] || {}).champ).length > 1; if (await del('races', id)) { closeDlg(); location.hash = multi ? 'prova-' + eid : 'regatas'; } }
   else if (a === 'boatSave') {
     if (!v('bName')) { toast('O barco precisa de nome.'); return; }
-    let skipperId = v('bSkip');
-    if (skipperId === '__new') {
-      if (!v('skName')) { toast('Indique o nome do novo skipper.'); return; }
-      skipperId = uniqueId('skippers', slug(v('skName')));
-      if (!await save('skippers', skipperId, { name: v('skName'), license: v('skLic'), clubId: v('skClub') || v('bClub') })) return;
+    const skName = v('bSkipName');
+    let skipperId = findSkipper(skName) || '';
+    if (skName && !skipperId) {
+      skipperId = uniqueId('skippers', slug(skName));
+      if (!await save('skippers', skipperId, { name: skName, license: v('skLic'), clubId: v('skClub') || v('bClub') })) return;
     }
+    const pick = (document.querySelector('input[name=certPick]:checked') || {}).value || 'none';
     const b = id ? clone(S.boats[id]) : { certs: [] };
     Object.assign(b, { name: v('bName').toUpperCase(), sail: v('bSail'), type: v('bType'), clubId: v('bClub'), skipperId, aka: v('bAka') ? v('bAka').split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [], div: v('bDiv'), note: $('#bNote').value.trim() });
     if (v('bCls')) b.classRef = v('bCls'); else delete b.classRef;
+    if (pick !== 'none' && !b.classRef) {
+      const [kind, ref] = [pick.slice(0, pick.indexOf(':')), pick.slice(pick.indexOf(':') + 1)];
+      const r = S.catalog && S.catalog.rows.find(x => x[10] === ref);
+      if (r) b.certs = (b.certs || []).concat([catCert(r, kind)]);
+    }
     const bid = id || slug(v('bName'));
     if (!id && S.boats[bid]) { toast('Já existe um barco com esse nome.'); return; }
     if (!await save('boats', bid, b)) return;
@@ -709,10 +768,7 @@ async function onClick(e) {
   }
   else if (a === 'catUse') {
     const r = S.catalog.rows.find(x => x[10] === t.dataset.ref); if (!r) return;
-    const kind = t.dataset.k;
-    const c = { from: v('cFrom') || r[5], kind, ToT_CL: r[7], ToT_WL: r[8], CDL: r[6], ref: r[10], src: (kind === 'copiado' ? 'copiado de ' : '') + `${r[0]} ${r[1]} ${r[3]} ${r[5].slice(0, 4)} ${r[4] === 'I' ? 'ORCi' : 'Club'} (${r[2]})` };
-    if (r[11]) c.GPH = r[11];
-    addCert(t.dataset.b, c);
+    addCert(t.dataset.b, catCert(r, t.dataset.k, v('cFrom')));
   }
   else if (a === 'certManual') {
     const n = x => x ? Number(x.replace(',', '.')) : null;
@@ -746,7 +802,76 @@ async function onClick(e) {
   else if (a === 'expHtml') { try { await DOWN.save({ filename: slug(ctxName()) + '.html', data: standingsHTML() }); } catch (_) { toast('Descarga cancelada.'); } }
 }
 document.addEventListener('input', e => { if (e.target.id === 'fleetQ') { S.fleetQ = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#fleetQ'); q.focus(); q.setSelectionRange(pos, pos); } });
+/* ---------- importar inscritos ---------- */
+function loadScript(src) { return new Promise((ok, ko) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => ko(new Error('não carregou ' + src)); document.head.appendChild(s); }); }
+async function readSheetRows(file) {
+  if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
+}
+const COLMAP = [
+  ['name', /^(barco|nome|nome do barco|embarcacao|yacht|boat|boat name|yacht name)$/],
+  ['sail', /(vela|sail)/], ['type', /(modelo|tipo|type|model|design|classe)/],
+  ['skipper', /(skipper|timoneiro|responsavel|owner|armador|helm)/], ['license', /(licen|license|licence)/], ['club', /(clube|club)/],
+];
+function parseEntries(rows) {
+  const key = c => String(c || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z ]/g, '').trim();
+  const hi = rows.findIndex(r => r.some(c => COLMAP[0][1].test(key(c))));
+  if (hi < 0) throw new Error('não encontrei a coluna do nome do barco (ex.: "Barco")');
+  const cols = {};
+  rows[hi].forEach((c, i) => { const k = key(c); const m = COLMAP.find(([f, re]) => cols[f] == null && re.test(k)); if (m) cols[m[0]] = i; });
+  return rows.slice(hi + 1).map(r => Object.fromEntries(COLMAP.map(([f]) => [f, cols[f] == null ? '' : String(r[cols[f]] || '').trim()]))).filter(x => x.name);
+}
+function findBoat(x) {
+  const sl = norm(x.sail), n = norm(x.name);
+  return (Object.entries(S.boats).find(([, b]) => sl.length >= 3 && norm(b.sail) === sl)
+    || Object.entries(S.boats).find(([, b]) => norm(b.name) === n || (b.aka || []).some(a => norm(a) === n)) || [null])[0];
+}
+function findClub(name) { const n = norm(name); return n ? (Object.entries(S.clubs).find(([, c]) => norm(c.short) === n || norm(c.name) === n) || [null])[0] : null; }
+async function importEntries(file, eid) {
+  dialog('Importar inscritos', '<div class="info">A ler o ficheiro…</div>');
+  try {
+    const [rows] = await Promise.all([readSheetRows(file), loadCatalog()]);
+    const list = parseEntries(rows).map(x => {
+      const boatId = findBoat(x), m = boatId ? null : certMatches(x.name, x.sail, x.type);
+      return Object.assign(x, { boatId, cert: m && m.own[0] ? m.own[0][10] : null, modelN: m ? m.model.length : 0 });
+    });
+    if (!list.length) throw new Error('o ficheiro não tem linhas com nome de barco');
+    S.edit = { kind: 'import', id: eid, list };
+    const ev = S.events[eid];
+    const row = (x, i) => `<tr><td><input type="checkbox" class="impChk" data-i="${i}" checked></td><td class="boat">${esc(x.name.toUpperCase())}<span class="sub">${esc([x.sail, x.type].filter(Boolean).join(' · '))}</span></td><td>${esc(x.skipper)}${x.skipper && !findSkipper(x.skipper) ? ' <span class="chip">novo</span>' : ''}</td><td>${esc(x.club)}${x.club && !findClub(x.club) ? ' <span class="chip">novo</span>' : ''}</td>
+      <td>${x.boatId ? `<span class="chip k-orc">na BD</span>${(ev.entries || []).includes(x.boatId) ? ' <span class="chip">já inscrito</span>' : ''}` : '<span class="chip k-teste">novo</span>'}</td>
+      <td>${x.boatId ? (E.certAt(S.boats[x.boatId], ev.dateFrom || today(), dbState()) ? 'tem' : '<span class="chip">sem</span>') : x.cert ? '<span class="chip k-orc">ORC encontrado</span>' : `<span class="chip">sem${x.modelN ? ' · ' + x.modelN + ' do modelo' : ''}</span>`}</td></tr>`;
+    dialog('Importar inscritos · ' + ev.name, `<div class="small muted">${list.length} linhas lidas. Barcos já na base de dados (mesma vela ou nome) são reaproveitados; os novos são criados com o certificado ORC próprio quando é encontrado. Para os "sem", escolha depois em Inscritos → "sem certificado".</div>
+      <div class="scroll"><table><thead><tr><th></th><th>Barco</th><th>Skipper</th><th>Clube</th><th>Estado</th><th>Cert.</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
+      <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="impConfirm">Importar e inscrever</button></div>`);
+  } catch (err) { dialog('Importar inscritos', `<div class="warn">Não foi possível importar: ${esc(err.message || err)}.</div><div class="small muted">Use um ficheiro .xlsx ou .csv com uma linha de títulos: Barco, Vela, Modelo, Skipper, Licença, Clube (só "Barco" é obrigatório).</div>`); }
+}
+async function confirmImport() {
+  const { id: eid, list } = S.edit;
+  const chosen = [...document.querySelectorAll('.impChk:checked')].map(x => list[+x.dataset.i]);
+  toast('A importar ' + chosen.length + ' barco(s)…');
+  const ids = [];
+  for (const x of chosen) {
+    let clubId = findClub(x.club) || '';
+    if (x.club && !clubId) { clubId = uniqueId('clubs', slug(x.club)); if (!await save('clubs', clubId, { name: x.club, short: x.club.length <= 12 ? x.club : '' })) return; }
+    let skipperId = findSkipper(x.skipper) || '';
+    if (x.skipper && !skipperId) { skipperId = uniqueId('skippers', slug(x.skipper)); if (!await save('skippers', skipperId, { name: x.skipper, license: x.license, clubId })) return; }
+    else if (skipperId && x.license && !S.skippers[skipperId].license) await save('skippers', skipperId, Object.assign(clone(S.skippers[skipperId]), { license: x.license }));
+    let bid = x.boatId;
+    if (!bid) {
+      bid = uniqueId('boats', slug(x.name));
+      const r = x.cert && S.catalog.rows.find(c => c[10] === x.cert);
+      const b = { name: x.name.toUpperCase(), sail: x.sail, type: x.type, clubId, skipperId, aka: [], div: '', note: '', certs: r ? [catCert(r, 'orc')] : [] };
+      if (!await save('boats', bid, b)) return;
+    }
+    ids.push(bid);
+  }
+  const ev = clone(S.events[eid]); ev.entries = [...new Set((ev.entries || []).concat(ids))].sort();
+  if (await save('events', eid, ev)) { toast(ids.length + ' barco(s) inscritos.'); closeDlg(); }
+}
 document.addEventListener('change', async e => {
+  if (e.target.id === 'impFile' && e.target.files[0]) { const f = e.target.files[0]; e.target.value = ''; return importEntries(f, e.target.dataset.e); }
   if (e.target.id !== 'photoIn' || !e.target.files[0]) return;
   if (!ASSETS) { toast('Só os editores podem guardar fotografias.'); return; }
   const id = e.target.dataset.id; toast('A enviar fotografia…');
