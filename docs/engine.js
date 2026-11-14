@@ -121,7 +121,8 @@
   }
 
   // pontua um conjunto de linhas (geral ou grupo)
-  function placeRows(rows) {
+  // nPen: pontos de penalização = nPen + 1 (inscritos da prova, RRS A5.2); por omissão, barcos na regata
+  function placeRows(rows, nPen) {
     const fin = rows.filter(r => r.code == null).sort((a, b) => a.corrected - b.corrected);
     const best = fin.length ? fin[0].corrected : 0;
     let i = 0;
@@ -132,7 +133,7 @@
       for (let k = i; k <= j; k++) { fin[k].pos = i + 1; fin[k].pts = pts; fin[k].delta = fin[k].corrected - best; }
       i = j + 1;
     }
-    const n = rows.length;
+    const n = Math.max(rows.length, nPen || 0);
     const pen = rows.filter(r => r.code != null).map(r => Object.assign(r, { pts: n + 1 }));
     return fin.concat(pen);
   }
@@ -140,7 +141,9 @@
   function raceResults(race, db, filterFn) {
     const { rows, problems, pending } = scoreRace(race, db);
     const sel = rows.filter(r => !filterFn || filterFn(db.boats[r.boatId], r.boatId)).map(r => Object.assign({}, r));
-    return { rows: pending ? sel : placeRows(sel), problems, pending: pending || false };
+    // race.entrants (opcional): inscritos da prova; os que faltam na lista de chegadas contam para os pontos de penalização
+    const nPen = Array.isArray(race.entrants) ? race.entrants.filter(id => db.boats[id] && (!filterFn || filterFn(db.boats[id], id))).length : 0;
+    return { rows: pending ? sel : placeRows(sel, nPen), problems, pending: pending || false };
   }
 
   function nDiscards(champ, nRaces) {
