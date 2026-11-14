@@ -83,6 +83,7 @@ async function init() {
     const v = e.target.value;
     if (v === '__newC') { e.target.value = S.ctx || ''; return openChampForm(null); }
     if (v === '__newE') { e.target.value = S.ctx || ''; return S.ctx ? openEventForm(null, ctxId()) : null; }
+    if (v === '__set') { e.target.value = S.ctx || ''; return S.ctx ? openChampForm(ctxId()) : null; }
     S.ctx = v; try { localStorage.setItem('ctx', v); } catch (_) {}
     S.group = 'GERAL'; location.hash = 'classificacao'; render();
   };
@@ -124,7 +125,7 @@ function pickCtx() {
   if (!valid(S.ctx)) S.ctx = valid(saved) ? saved : champs[0] ? 'c:' + champs[0][0] : null;
   const opt = (v, t) => `<option value="${esc(v)}" ${v === S.ctx ? 'selected' : ''}>${esc(t)}</option>`;
   $('#ctxSel').innerHTML = champs.map(([id, c]) => opt('c:' + id, c.name)).join('')
-    + (S.canEdit ? `<option value="__newC">+ Criar campeonato</option><option value="__newE" ${S.ctx ? '' : 'disabled'}>+ Nova prova${S.ctx ? ' neste campeonato' : ' (escolha um campeonato)'}</option>` : '');
+    + (S.canEdit ? `<option value="__newC">+ Criar campeonato</option><option value="__newE" ${S.ctx ? '' : 'disabled'}>+ Nova prova${S.ctx ? ' neste campeonato' : ' (escolha um campeonato)'}</option><option value="__set" ${S.ctx ? '' : 'disabled'}>⚙ Definições do campeonato</option>` : '');
   if (!S.ctx) $('#ctxSel').insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>');
   const c = S.ctx ? S.champs[ctxId()] : null;
   $('#clubName').textContent = c ? (S.clubs[c.clubId] || {}).name || '' : '';
