@@ -1,0 +1,53 @@
+{
+  "date": "2025-12-13",
+  "distance": null,
+  "finishes": [
+    {
+      "boatId": "too-much",
+      "finish": "13:02:22"
+    },
+    {
+      "boatId": "magano",
+      "finish": "13:04:56"
+    },
+    {
+      "boatId": "tita",
+      "finish": "13:07:48"
+    },
+    {
+      "boatId": "troton",
+      "finish": "13:21:26"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "13:23:55"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "13:26:20"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "13:28:02"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "13:28:09"
+    },
+    {
+      "boatId": "free-bird",
+      "finish": "14:01:37"
+    },
+    {
+      "boatId": "lpaz",
+      "code": "RET",
+      "finish": ""
+    }
+  ],
+  "name": "Regata de Natal",
+  "start": "11:10:00",
+  "status": "final",
+  "system": "ToT_CL",
+  "timeLimit": "15:40:00",
+  "event": "trf2526-natal"
+}

@@ -1,0 +1,32 @@
+{
+  "classGroups": [
+    "platu25"
+  ],
+  "discards": [
+    {
+      "n": 0,
+      "upTo": 3
+    },
+    {
+      "n": 1,
+      "upTo": 8
+    },
+    {
+      "n": 2,
+      "upTo": 999
+    }
+  ],
+  "divLimits": {
+    "A": 9.9,
+    "B": 8.8
+  },
+  "groups": [
+    "A",
+    "B",
+    "C",
+    "SB"
+  ],
+  "name": "Troféu Ria Formosa 2025/2026",
+  "season": "2025/26",
+  "clubId": "gcnfaro"
+}

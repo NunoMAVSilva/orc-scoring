@@ -1,0 +1,18 @@
+{
+  "certs": [
+    {
+      "ToD_CL": 667.6,
+      "ToT_CL": 0.8988,
+      "ToT_WL": 0.7851,
+      "from": "2025-01-01",
+      "kind": "copiado",
+      "src": "Raphael KOR 2021"
+    }
+  ],
+  "div": "C",
+  "name": "BERLENGA",
+  "sail": "",
+  "type": "HUNTER 336",
+  "clubId": "",
+  "skipperId": "fernando-paula-brito"
+}

@@ -1,0 +1,45 @@
+{
+  "date": "2026-02-28",
+  "distance": 11,
+  "finishes": [
+    {
+      "boatId": "paquito",
+      "finish": "14:32:10"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "14:37:13"
+    },
+    {
+      "boatId": "troton",
+      "finish": "14:53:57"
+    },
+    {
+      "boatId": "choque",
+      "finish": "14:57:14"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "15:02:43"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "15:12:08"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "15:29:30"
+    },
+    {
+      "boatId": "sambuca",
+      "code": "RET",
+      "finish": ""
+    }
+  ],
+  "name": "Timoneiras",
+  "start": "11:25:00",
+  "status": "final",
+  "system": "ToD_CL",
+  "timeLimit": "15:25:00",
+  "event": "trf2526-timoneiras"
+}

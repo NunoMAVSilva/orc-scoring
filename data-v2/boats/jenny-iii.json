@@ -1,0 +1,19 @@
+{
+  "certs": [
+    {
+      "CDL": 5.689,
+      "ToD_CL": 751.1,
+      "ToT_CL": 0.7988,
+      "ToT_WL": 0.7148,
+      "from": "2025-01-01",
+      "kind": "orc",
+      "src": "SWE 2025"
+    }
+  ],
+  "div": "C",
+  "name": "JENNY III",
+  "sail": "SWE 11151",
+  "type": "BENETEAU FIRST 210",
+  "clubId": "gnolhao",
+  "skipperId": "arne-hakansson"
+}

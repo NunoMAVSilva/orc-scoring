@@ -1,0 +1,19 @@
+{
+  "certs": [
+    {
+      "CDL": 9.591,
+      "ToD_CL": 617.8,
+      "ToT_CL": 0.9712,
+      "ToT_WL": 0.8447,
+      "from": "2026-02-15",
+      "kind": "copiado",
+      "src": "Mowett ESP 2026"
+    }
+  ],
+  "div": "B",
+  "name": "STª TERESINHA",
+  "sail": "POR 1524",
+  "type": "OCEANIS 411",
+  "clubId": "gnolhao",
+  "skipperId": "joao-ferro"
+}
