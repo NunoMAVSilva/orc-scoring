@@ -2,7 +2,7 @@
 'use strict';
 const E = window.ORC;
 const COLS = ['champs', 'events', 'races', 'boats', 'classes', 'clubs', 'skippers'];
-const S = { loaded: {}, canEdit: false, ctx: null, group: 'GERAL', raceGroup: 'GERAL', evGroup: 'GERAL', fleetTab: 'boats', edit: null, catalog: null };
+const S = { loaded: {}, canEdit: false, ctx: null, group: 'GERAL', raceGroup: 'GERAL', evGroup: 'GERAL', fleetTab: 'champ', edit: null, catalog: null };
 COLS.forEach(c => { S[c] = {}; });
 let DB = null, ASSETS = null, SAMPLE = null, DOWN = null;
 // STATIC: site público (GitHub Pages), fora do Claude — lê data/db.json, só leitura.
@@ -98,7 +98,7 @@ function downloadFile(filename, data) {
 }
 const updatedNote = () => STATIC && S.exportedAt ? ` · Atualizado a ${dPT(S.exportedAt.slice(0, 10))} às ${new Date(S.exportedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' })}.` : '';
 function pickCtx() {
-  const champs = Object.entries(S.champs).sort((a, b) => (b[1].season || '').localeCompare(a[1].season || ''));
+  const champs = Object.entries(S.champs).sort((a, b) => (b[1].dateFrom || b[1].season || '').localeCompare(a[1].dateFrom || a[1].season || ''));
   const valid = v => v && v[0] === 'c' && S.champs[v.slice(2)];
   let saved = null; try { saved = localStorage.getItem('ctx'); } catch (_) {}
   if (!valid(S.ctx)) S.ctx = valid(saved) ? saved : champs[0] ? 'c:' + champs[0][0] : null;
@@ -149,7 +149,7 @@ function viewStandings() {
     body = standingsTable(st, races, c) + `<p class="small muted">DNC = ${st.dnc} pontos (inscritos do grupo no campeonato + 1) · ${st.nDiscards} descarte(s) com ${races.length} regatas · desempates RRS A8. Pontos riscados = descartes.${updatedNote()}</p>`;
   }
   const fin = races.filter(r => r.status === 'final').length;
-  return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${champEvents(cid).length} provas · ${races.length} regatas · ${fin} finais · ${esc(c.season || '')}</div></div>
+  return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${c.dateFrom ? evDates(c) + ' · ' : ''}${champEvents(cid).length} provas · ${races.length} regatas · ${fin} finais${c.season ? ' · ' + esc(c.season) : ''}</div></div>
     <div class="row">${S.canEdit ? `<button class="btn sm" data-a="editChamp" data-id="${esc(cid)}">Definições</button>` : ''}<button class="btn sm" data-a="export">Exportar</button></div></section>
     <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     ${body}`;
@@ -277,9 +277,10 @@ function drawFinishEditor() {
 
 /* ---------- frota: barcos, skippers, clubes ---------- */
 function viewFleet() {
-  const tabs = [['boats', 'Barcos'], ['skippers', 'Skippers'], ['clubs', 'Clubes']];
+  const cid = S.ctx ? ctxId() : null, entered = cid ? champEntries(cid).filter(id => S.boats[id]) : [];
+  const tabs = [['champ', 'Inscritos', entered.length], ['boats', 'Base de dados', Object.keys(S.boats).length], ['skippers', 'Skippers', Object.keys(S.skippers).length], ['clubs', 'Clubes', Object.keys(S.clubs).length]];
   const t = S.fleetTab;
-  const head = `<div class="tabs">${tabs.map(([k, n]) => `<button data-a="fleetTab" data-k="${k}" class="${t === k ? 'on' : ''}">${n} (${Object.keys(S[k]).length})</button>`).join('')}</div>`;
+  const head = `<div class="tabs">${tabs.map(([k, n, c]) => `<button data-a="fleetTab" data-k="${k}" class="${t === k ? 'on' : ''}">${n} (${c})</button>`).join('')}</div>`;
   if (t === 'skippers') {
     const list = Object.entries(S.skippers).sort(byName).map(([id, s]) => {
       const boats = Object.values(S.boats).filter(b => b.skipperId === id).map(b => b.name).join(', ');
@@ -295,18 +296,24 @@ function viewFleet() {
     return `<section class="row spread"><h1>Clubes</h1>${S.canEdit ? '<button class="btn pri" data-a="newClub">+ Novo clube</button>' : ''}</section>${head}<div class="list">${list || '<div class="empty">Sem clubes.</div>'}</div>`;
   }
   const q = S.fleetQ || '';
-  const list = Object.entries(S.boats).filter(([, b]) => !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId) + clubShort(b.clubId) + (b.aka || []).join('')).includes(norm(q))).sort(byName);
+  const champMode = t === 'champ';
+  const pool = champMode ? entered.map(id => [id, S.boats[id]]) : Object.entries(S.boats);
+  const list = pool.filter(([, b]) => !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId) + clubShort(b.clubId) + (b.aka || []).join('')).includes(norm(q))).sort(byName);
   const d = today();
+  const evCount = id => champEvents(cid).filter(([, e]) => (e.entries || []).includes(id)).length;
   const items = list.map(([id, b]) => {
     const cl = E.ratingAt(b, d, 'ToT_CL', dbState()), wl = E.ratingAt(b, d, 'ToT_WL', dbState());
     const k = cl ? cl.cert.kind || 'orc' : null;
-    return `<a class="item" href="#boat-${esc(id)}"><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}</div>
+    return `<a class="item" href="#boat-${esc(id)}"><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}${champMode ? ' · ' + evCount(id) + ' prova(s)' : ''}</div>
       <div class="meta num">ToT costeiro ${fmt4(cl && cl.value)} · barl./sotav. ${fmt4(wl && wl.value)}</div></div>${k ? `<span class="chip k-${esc(k)}">${esc(k)}</span>` : '<span class="chip">sem rating</span>'}</a>`;
   }).join('');
-  return `<section class="row spread"><h1>Barcos</h1>${S.canEdit ? '<button class="btn pri" data-a="newBoat">+ Novo barco</button>' : ''}</section>${head}
+  const intro = champMode
+    ? `<div class="small muted">${cid ? `Barcos inscritos em pelo menos uma prova de ${esc(S.champs[cid].name)}. As inscrições fazem-se em cada prova (Provas → prova → Gerir inscrições).` : 'Escolha um campeonato no topo.'}</div>`
+    : '<div class="small muted">Todos os barcos guardados. Estar na base de dados não inscreve o barco em nenhuma prova.</div>';
+  return `<section class="row spread"><h1>${champMode ? 'Frota' : 'Base de dados'}</h1>${S.canEdit && !champMode ? '<button class="btn pri" data-a="newBoat">+ Novo barco</button>' : ''}</section>${head}${intro}
     <input id="fleetQ" value="${esc(q)}" placeholder="Procurar barco, vela, tipo, skipper ou clube" style="padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
     <div class="small muted">${list.length} barcos · ratings em vigor hoje (${dPT(d)})</div>
-    <div class="list">${items}</div>`;
+    <div class="list">${items || `<div class="empty">${champMode ? 'Ainda sem barcos inscritos neste campeonato.' : 'Sem barcos.'}</div>`}</div>`;
 }
 function viewBoat(id) {
   const b = S.boats[id]; if (!b) return '<div class="empty">Barco não encontrado.</div>';
@@ -348,8 +355,9 @@ function readRules() {
   };
 }
 function openChampForm(id) {
-  const c = id ? S.champs[id] : Object.assign({ name: '', season: '', clubId: '' }, clone(DEFAULT_RULES));
+  const c = id ? S.champs[id] : Object.assign({ name: '', season: '', clubId: '', dateFrom: today(), dateTo: '' }, clone(DEFAULT_RULES));
   dialog(id ? 'Definições do campeonato' : 'Novo campeonato', `<div class="grid-f">${field('cName', 'Nome', c.name)}${field('cSeason', 'Época', c.season, 'placeholder="2026/27"')}${sel('cClub', 'Clube organizador', c.clubId, clubOpts())}
+    ${field('cFrom', 'Data de início', c.dateFrom || '', 'type="date"')}${field('cTo', 'Data de fim', c.dateTo || '', 'type="date"')}
     ${rulesFields(c)}
     <div class="row spread">${delBtn('champDel', id, 'Apagar campeonato')}<button class="btn pri" data-a="champSave" data-id="${esc(id || '')}">Gravar</button></div>`);
 }
@@ -375,16 +383,19 @@ function openRaceForm(id, eventId) {
 }
 function openEntriesForm(eid) {
   const e = S.events[eid];
-  S.edit = { kind: 'entries', id: eid, set: new Set(e.entries || []) };
+  S.edit = { kind: 'entries', id: eid, set: new Set(e.entries || []), init: new Set(e.entries || []) };
   drawEntries();
 }
 function drawEntries() {
   const ed = S.edit, q = norm(ed.q || '');
   const raced = new Set(eventRaces(ed.id).flatMap(r => (r.finishes || []).map(f => f.boatId)));
-  const list = Object.entries(S.boats).filter(([, b]) => !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId)).includes(q)).sort(byName);
+  const list = Object.entries(S.boats).filter(([, b]) => !q || norm(b.name + b.sail + b.type + skipperName(b.skipperId)).includes(q)).sort((a, b) => (ed.init.has(b[0]) - ed.init.has(a[0])) || byName(a, b));
+  const others = champEvents(S.events[ed.id].champ).filter(([eid, e]) => eid !== ed.id && (e.entries || []).length);
   const rows = list.map(([id, b]) => `<label class="item" style="cursor:pointer"><input type="checkbox" class="entChk" value="${esc(id)}" ${ed.set.has(id) ? 'checked' : ''} ${raced.has(id) && ed.set.has(id) ? 'disabled title="Tem resultados nesta prova"' : ''}><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}${raced.has(id) ? ' · com resultados' : ''}</div></div></label>`).join('');
   dialog('Inscrições · ' + S.events[ed.id].name, `<div class="row spread"><span class="small muted">${ed.set.size} inscritos</span><button class="btn sm" data-a="newBoat" data-e="${esc(ed.id)}">+ Novo barco</button></div>
-    <input id="entQ" value="${esc(ed.q || '')}" placeholder="Procurar barco" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
+    <div class="small muted">Só os barcos marcados entram nesta prova (classificações, chegadas e leitura da folha).</div>
+    ${others.length ? `<div class="row"><select id="entCopy" style="flex:1;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">${others.map(([eid, e]) => `<option value="${esc(eid)}">${esc(e.name)} (${e.entries.length})</option>`).join('')}</select><button class="btn sm" data-a="entCopy">Copiar inscritos</button></div>` : ''}
+    <input id="entQ" value="${esc(ed.q || '')}" placeholder="Procurar barco na base de dados" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
     <div class="list">${rows || '<div class="small muted">Nenhum barco.</div>'}</div>
     <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="entriesSave">Gravar inscrições</button></div>`);
   $('#dlgB').onchange = ev => { if (ev.target.classList.contains('entChk')) { ev.target.checked ? ed.set.add(ev.target.value) : ed.set.delete(ev.target.value); } };
@@ -459,11 +470,12 @@ async function addCert(boatId, cert) {
 async function readSheet(raceId) {
   const race = S.races[raceId], ev = S.events[race.event] || {};
   if (!SAMPLE) { toast('A leitura com o Claude não está disponível nesta vista.'); return; }
+  if (!(ev.entries || []).length) { toast('Inscreva primeiro os barcos nesta prova.'); return; }
   const pid = (race.photos || []).slice(-1)[0];
   dialog('Ler folha com o Claude', '<div class="info">A ler a fotografia… pode demorar alguns segundos.</div>');
   try {
     const blob = await fetch('/_blob/' + pid).then(r => r.blob());
-    const ids = (ev.entries || []).length ? ev.entries : Object.keys(S.boats);
+    const ids = ev.entries || [];
     const fleet = ids.filter(id => S.boats[id]).map(id => { const b = S.boats[id]; return `${id} | ${b.name} | ${(b.aka || []).join('/')} | ${b.sail || ''} | ${b.type || ''} | ${skipperName(b.skipperId)}`; }).join('\n');
     const prompt = `És secretário de regata. Lê a folha de chegadas manuscrita da fotografia (regata "${race.name}", largada ${race.start}).
 Devolve APENAS JSON com esta forma: {"start":"hh:mm:ss ou null","finishes":[{"read":"nome como está escrito","boatId":"id da lista ou null","finish":"hh:mm:ss ou null","code":"FIN|DNF|DNS|RET|OCS|BFD|UFD|DSQ"}],"notes":"observações curtas em português"}
@@ -544,13 +556,20 @@ async function onClick(e) {
     const r = clone(S.races[S.edit.id]); r.finishes = rows;
     if (await save('races', S.edit.id, r)) { toast('Chegadas gravadas.'); closeDlg(); }
   }
+  else if (a === 'entCopy') {
+    const src = S.events[v('entCopy')]; if (!src) return;
+    let n = 0; (src.entries || []).forEach(b => { if (S.boats[b] && !S.edit.set.has(b)) { S.edit.set.add(b); n++; } });
+    S.edit.init = new Set(S.edit.set); toast(n + ' barco(s) adicionados.'); drawEntries();
+  }
   else if (a === 'entriesSave') {
     const ev = clone(S.events[S.edit.id]); ev.entries = [...S.edit.set].filter(b => S.boats[b]).sort();
     if (await save('events', S.edit.id, ev)) { toast('Inscrições gravadas.'); closeDlg(); }
   }
   else if (a === 'champSave') {
-    const c = Object.assign(id ? clone(S.champs[id]) : {}, { name: v('cName'), season: v('cSeason'), clubId: v('cClub') }, readRules());
+    const c = Object.assign(id ? clone(S.champs[id]) : {}, { name: v('cName'), season: v('cSeason'), clubId: v('cClub'), dateFrom: v('cFrom'), dateTo: v('cTo') || v('cFrom') }, readRules());
     if (!c.name) { toast('O campeonato precisa de nome.'); return; }
+    if (!c.dateFrom) { toast('Indique a data de início do campeonato.'); return; }
+    if (c.dateTo < c.dateFrom) { toast('A data de fim é anterior à de início.'); return; }
     const cid = id || uniqueId('champs', slug(c.name + ' ' + c.season));
     if (!await save('champs', cid, c)) return;
     S.ctx = 'c:' + cid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {}
