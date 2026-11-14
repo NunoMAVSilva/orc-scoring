@@ -325,9 +325,9 @@ function drawFinishEditor() {
     <details><summary class="small">Adicionar inscrito (${quick ? 'faltam ' + (boatsSorted.filter(([bid]) => !inRace.has(bid) && entered.has(bid)).length) : 'todos na lista'})</summary><div class="row" style="margin-top:8px">${quick || '<span class="small muted">Para adicionar outro barco, inscreva-o primeiro na prova.</span>'}</div></details>
     <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="finSave">Gravar chegadas</button></div>`);
   $('#dlgB').oninput = $('#dlgB').onchange = e => {
-    const el = e.target; if (el.id === 'finStart') { S.edit.start = el.value.replace(/[.,h ]/g, ':'); return; } if (el.id === 'finDist') { S.edit.dist = el.value; return; } if (el.dataset.fi == null) return;
+    const el = e.target; if (el.id === 'finStart') { S.edit.start = el.value.trim(); if (e.type === 'change' && E.secs(S.edit.start) != null) el.value = S.edit.start = cleanTime(S.edit.start); return; } if (el.id === 'finDist') { S.edit.dist = el.value; return; } if (el.dataset.fi == null) return;
     const f = S.edit.rows[+el.dataset.fi]; f[el.dataset.k] = el.value;
-    if (el.dataset.k === 'finish') f.finish = el.value.replace(/[.,h ]+/g, ':').replace(/:+/g, ':');
+    if (el.dataset.k === 'finish') { f.finish = el.value.trim(); if (e.type === 'change' && E.secs(f.finish) != null) el.value = f.finish = cleanTime(f.finish); }
   };
 }
 
@@ -746,7 +746,7 @@ async function onClick(e) {
   else if (a === 'finSave') {
     const rows = S.edit.rows.filter(r => r.boatId).map(r => { const o = { boatId: r.boatId }; if (r.code && r.code !== 'FIN') o.code = r.code; else o.finish = cleanTime(r.finish); if (r.code && r.code !== 'FIN' && r.finish) o.finish = cleanTime(r.finish); return o; });
     const ids = rows.map(r => r.boatId); if (new Set(ids).size !== ids.length) { toast('Há barcos repetidos.'); return; }
-    const bad = rows.find(r => !r.code && E.secs(r.finish) == null); if (bad) { toast('Falta a hora de ' + S.boats[bad.boatId].name + '.'); return; }
+    const bad = rows.find(r => !r.code && E.secs(r.finish) == null); if (bad) { toast((bad.finish ? `Hora inválida (${bad.finish}) de ` : 'Falta a hora de ') + S.boats[bad.boatId].name + '. Use hhmmss, ex.: 164900.'); return; }
     const st = (S.edit.start || '').trim() ? cleanTime(S.edit.start.trim()) : '';
     if (st && E.secs(st) == null) { toast('Hora de largada inválida (hh:mm:ss).'); return; }
     const r = clone(S.races[S.edit.id]); r.finishes = rows; r.start = st;
@@ -833,8 +833,8 @@ async function onClick(e) {
     if (v('rLim') && E.secs(v('rLim')) == null) { toast('Tempo limite inválido (h:mm).'); return; }
     if (v('rDist') && !(Number(v('rDist').replace(',', '.')) > 0)) { toast('Distância inválida (milhas náuticas).'); return; }
     const base = id ? clone(S.races[id]) : { finishes: [] };
-    Object.assign(base, { name: v('rName'), event: v('rEvent'), date: v('rDate'), start: v('rStart').replace(/[.,h]/g, ':'), system: v('rSys'), distance: v('rDist') ? Number(v('rDist').replace(',', '.')) : null, status: v('rStatus') });
-    const lim = v('rLim').replace(/[.,h]/g, ':');
+    Object.assign(base, { name: v('rName'), event: v('rEvent'), date: v('rDate'), start: v('rStart') ? cleanTime(v('rStart')) : '', system: v('rSys'), distance: v('rDist') ? Number(v('rDist').replace(',', '.')) : null, status: v('rStatus') });
+    const lim = v('rLim') ? cleanTime(v('rLim')) : '';
     if (v('rLimMode') === 'dur') { base.timeLimitDur = lim; base.timeLimit = ''; } else { base.timeLimit = lim; base.timeLimitDur = ''; }
     const rid = id || uniqueId('races', slug(v('rEvent') + '-' + v('rName')));
     if (await save('races', rid, base)) {
@@ -1013,6 +1013,7 @@ async function doImport() {
 }
 // Safari (Mac) deixa o calendário do campo de data aberto depois de escolher o dia: tirar o foco fecha-o.
 document.addEventListener('change', e => { if (e.target && e.target.type === 'date') setTimeout(() => e.target.blur(), 0); }, true);
+document.addEventListener('change', e => { const el = e.target; if (el && (el.id === 'rStart' || el.id === 'rLim') && el.value && E.secs(el.value) != null) el.value = cleanTime(el.value); }, true);
 document.addEventListener('change', async e => {
   if (e.target.id === 'impFile' && e.target.files[0]) { const f = e.target.files[0], d = e.target.dataset; e.target.value = ''; const eid = d.e || await ensureEvent(d.c); return eid && importEntries(f, eid); }
   if (e.target.id !== 'photoIn' || !e.target.files[0]) return;

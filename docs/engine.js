@@ -13,10 +13,15 @@
   function secs(t) {
     if (t == null || t === '') return null;
     // separadores aceites: : . , h ou espaço; repetidos contam como um (ex.: "16:49::00")
-    const txt = String(t).trim().replace(/[.,h\s]+/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
+    let txt = String(t).trim();
+    if (/^\d{7,}$/.test(txt)) return null;
+    // só algarismos (teclado numérico): 164900 → 16:49:00, 93015 → 9:30:15, 1649 → 16:49, 930 → 9:30
+    if (/^\d{3,6}$/.test(txt)) txt = txt.length > 4 ? txt.slice(0, -4) + ':' + txt.slice(-4, -2) + ':' + txt.slice(-2) : txt.slice(0, -2) + ':' + txt.slice(-2);
+    txt = txt.replace(/[.,h\s]+/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
     if (!txt) return null;
     const p = txt.split(':').map(Number);
     if (p.some(isNaN) || p.length > 3) return null;
+    if ((p.length > 1 && p[1] >= 60) || (p.length > 2 && p[2] >= 60)) return null;
     while (p.length < 3) p.push(0);
     return p[0] * 3600 + p[1] * 60 + p[2];
   }
