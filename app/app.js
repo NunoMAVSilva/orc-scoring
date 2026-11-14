@@ -150,12 +150,12 @@ function viewStandings() {
   let body;
   if (S.group === 'PROVAS') body = champEvents(cid).map(([eid, e]) => {
     const rs = eventRaces(eid);
-    const st = E.seriesStandings(rs, dbState(), { discards: 0, boats: e.entries || [] });
-    return `<div class="card"><div class="row spread"><h2><a href="#prova-${esc(eid)}" style="color:inherit">${esc(e.name)}</a></h2><span class="small muted">${evDates(e)}</span></div><div class="small muted">${rs.length} regata(s) · ${(e.entries || []).length} inscritos · soma sem descartes</div>${standingsTable(st, rs, c)}</div>`;
+    const rsS = rs.filter(E.isScored), st = E.seriesStandings(rsS, dbState(), { discards: 0, boats: e.entries || [] });
+    return `<div class="card"><div class="row spread"><h2><a href="#prova-${esc(eid)}" style="color:inherit">${esc(e.name)}</a></h2><span class="small muted">${evDates(e)}</span></div><div class="small muted">${rs.length} regata(s) · ${(e.entries || []).length} inscritos · soma sem descartes</div>${standingsTable(st, rsS, c)}</div>`;
   }).join('') || '<div class="empty">Sem provas.</div>';
   else {
-    const st = E.seriesStandings(races, dbState(), { champ: c, filter: groupFilter(S.group, c), boats: champEntries(cid) });
-    body = standingsTable(st, races, c) + `<p class="small muted">DNC = ${st.dnc} pontos (inscritos do grupo no campeonato + 1) · ${st.nDiscards} descarte(s) com ${races.length} regatas · desempates RRS A8. Pontos riscados = descartes.${updatedNote()}</p>`;
+    const racesS = races.filter(E.isScored), st = E.seriesStandings(racesS, dbState(), { champ: c, filter: groupFilter(S.group, c), boats: champEntries(cid) });
+    body = standingsTable(st, racesS, c) + `<p class="small muted">DNC = ${st.dnc} pontos (inscritos do grupo no campeonato + 1) · ${st.nDiscards} descarte(s) com ${racesS.length} regatas${racesS.length < races.length ? ` (${races.length - racesS.length} ainda sem resultados)` : ''} · desempates RRS A8. Pontos riscados = descartes.${updatedNote()}</p>`;
   }
   const fin = races.filter(r => r.status === 'final').length;
   return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${c.dateFrom ? evDates(c) + ' · ' : ''}${champEvents(cid).length} provas · ${races.length} regatas · ${fin} finais${c.season ? ' · ' + esc(c.season) : ''}</div></div>
@@ -164,14 +164,14 @@ function viewStandings() {
     ${body}`;
 }
 function eventStandings(eid, groupKey) {
-  const e = S.events[eid], rules = rulesOfEvent(e), rs = eventRaces(eid);
+  const e = S.events[eid], rules = rulesOfEvent(e), rs = eventRaces(eid).filter(E.isScored);
   // prova única no campeonato: aplica as regras (descartes) do campeonato; várias provas: soma sem descartes
   const single = champEvents(e.champ).length <= 1;
   const opts = single ? { champ: rules } : { discards: 0 };
   return { rs, rules, st: E.seriesStandings(rs, dbState(), Object.assign(opts, { filter: groupFilter(groupKey, rules), boats: e.entries || [] })) };
 }
 function standingsTable(st, races, rules) {
-  if (!st.table.length) return '<div class="empty">Sem resultados ainda.</div>';
+  if (!st.table.length || !races.length) return '<div class="empty">Sem resultados ainda.</div>';
   const head = races.map((r, i) => `<th class="n" title="${esc(r.name)}"><a href="#race-${esc(r.id)}">R${i + 1}</a></th>`).join('');
   const rows = st.table.map(r => {
     const b = S.boats[r.boatId] || {};
@@ -217,7 +217,7 @@ function viewEvent(eid, single) {
   const raceItems = rs.map((r, i) => {
     const n = (r.finishes || []).length, nf = (r.finishes || []).filter(f => !f.code || f.code === 'FIN').length;
     return `<a class="item" href="#race-${esc(r.id)}"><div class="idx">R${i + 1}</div><div class="grow"><div class="title">${esc(r.name)}</div>
-      <div class="meta">${dPT(r.date)} · largada ${esc((r.start || '').slice(0, 5))} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''}</div>
+      <div class="meta">${dPT(r.date)} · ${r.start ? 'largada ' + esc(r.start.slice(0, 5)) : 'largada por ler'} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''}</div>
       <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span></a>`;
   }).join('');
   const entries = (e.entries || []).filter(id => S.boats[id]).map(id => [id, S.boats[id]]).sort(byName);
@@ -255,6 +255,7 @@ function viewRace(id) {
   const isToD = race.system.startsWith('ToD');
   const tr = rows.map(x => {
     const b = S.boats[x.boatId] || {};
+    if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a largada)</td></tr>`;
     if (x.code) return `<tr><td class="pos">—</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
     return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
       <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
@@ -262,8 +263,8 @@ function viewRace(id) {
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
   return `<section class="row spread"><div><div class="small muted"><a href="#${champEvents(ev.champ).length > 1 ? 'prova-' + esc(race.event) : 'regatas'}">${champEvents(ev.champ).length > 1 ? esc(ev.name || 'Prova') : 'Regatas'}</a> · R${idx}</div><h1>${esc(race.name)}</h1></div>
       <span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span></section>
-    <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${esc((race.start || '').slice(0, 5))}</b><span>largada</span></div>
-      <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
+    <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${race.start ? esc(race.start.slice(0, 5)) : '—'}</b><span>${race.start ? 'largada' : 'largada por ler'}</span></div>
+      <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimitDur ? `<div class="kpi"><b>${esc(race.timeLimitDur.slice(0, 5))}</b><span>tempo limite</span></div>` : race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table></div>
@@ -276,7 +277,7 @@ function viewRace(id) {
 /* ---------- editor de chegadas ---------- */
 function openFinishEditor(id, proposal) {
   const race = S.races[id];
-  S.edit = { id, rows: (proposal || race.finishes || []).map(f => Object.assign({}, f)) };
+  S.edit = { id, start: race.start || '', rows: (proposal || race.finishes || []).map(f => Object.assign({}, f)) };
   drawFinishEditor();
 }
 function drawFinishEditor() {
@@ -290,13 +291,14 @@ function drawFinishEditor() {
      <button class="x" data-a="finDel" data-i="${i}" aria-label="Remover linha">×</button>${f.read ? `<div class="small muted" style="grid-column:1/-1">lido: “${esc(f.read)}”${f.boatId ? '' : ' · escolha o barco'}</div>` : ''}</div>`).join('');
   const inRace = new Set(ed.rows.map(r => r.boatId));
   const quick = boatsSorted.filter(([bid]) => !inRace.has(bid) && entered.has(bid)).map(([bid, b]) => `<button class="btn sm" data-a="finAdd" data-b="${esc(bid)}">${esc(b.name)}</button>`).join('');
-  dialog(`Chegadas · ${race.name}`, `<div class="small muted">Largada ${esc(race.start)} · Ordem de chegada. FIN = chegou (precisa de hora). Siglas DNF/DNS/RET… para barcos que estiveram na regata. Inscritos que não estão aqui ficam DNC.</div>
+  dialog(`Chegadas · ${race.name}`, `<div class="grid-f">${field('finStart', 'Hora de largada', ed.start, 'placeholder="hh:mm:ss" inputmode="numeric"')}</div>${ed.startNote ? `<div class="small muted">${esc(ed.startNote)}</div>` : ''}
+    <div class="small muted">Ordem de chegada. FIN = chegou (precisa de hora). Siglas DNF/DNS/RET… para barcos que estiveram na regata. Inscritos que não estão aqui ficam DNC.</div>
     <div class="list">${rows || '<div class="muted small">Sem linhas.</div>'}</div>
     <div class="row"><button class="btn sm" data-a="finAdd">+ Linha</button></div>
     <details><summary class="small">Adicionar inscrito (${quick ? 'faltam ' + (boatsSorted.filter(([bid]) => !inRace.has(bid) && entered.has(bid)).length) : 'todos na lista'})</summary><div class="row" style="margin-top:8px">${quick || '<span class="small muted">Para adicionar outro barco, inscreva-o primeiro na prova.</span>'}</div></details>
     <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="finSave">Gravar chegadas</button></div>`);
   $('#dlgB').oninput = $('#dlgB').onchange = e => {
-    const el = e.target; if (el.dataset.fi == null) return;
+    const el = e.target; if (el.id === 'finStart') { S.edit.start = el.value.replace(/[.,h ]/g, ':'); return; } if (el.dataset.fi == null) return;
     const f = S.edit.rows[+el.dataset.fi]; f[el.dataset.k] = el.value;
     if (el.dataset.k === 'finish') f.finish = el.value.replace(/[.,h ]/g, ':');
   };
@@ -443,9 +445,9 @@ function openRaceForm(id, eventId) {
   const evOpts = Object.entries(S.events).sort((a, b) => (b[1].dateFrom || '').localeCompare(a[1].dateFrom || '')).map(([k, e]) => [k, e.name + (e.champ && S.champs[e.champ] ? ' · ' + S.champs[e.champ].name : '')]);
   dialog(id ? 'Dados da regata' : 'Nova regata', `<div class="grid-f">
     ${field('rName', 'Nome da regata', r.name, 'placeholder="ex.: Regata 1"')}${sel('rEvent', 'Prova', r.event, evOpts)}
-    ${field('rDate', 'Data', r.date, 'type="date"')}${field('rStart', 'Hora da largada', r.start, 'placeholder="hh:mm:ss"')}
+    ${field('rDate', 'Data', r.date, 'type="date"')}${field('rStart', 'Hora da largada (opcional — lida da folha)', r.start || '', 'placeholder="hh:mm:ss"')}
     ${sel('rSys', 'Sistema de pontuação', r.system, Object.entries(E.SYSTEMS))}${field('rDist', 'Distância do percurso (NM, para ToD)', r.distance || '', 'inputmode="decimal"')}
-    ${field('rLim', 'Hora limite de chegada', r.timeLimit || '', 'placeholder="hh:mm:ss"')}${sel('rStatus', 'Estado', r.status || 'provisoria', [['provisoria', 'Provisória'], ['final', 'Final']])}</div>
+    ${sel('rLimMode', 'Tempo limite (IdR)', r.timeLimit && !r.timeLimitDur ? 'abs' : 'dur', [['dur', 'Duração após a largada'], ['abs', 'Hora limite de chegada']])}${field('rLim', 'Tempo limite', r.timeLimitDur || r.timeLimit || '', 'placeholder="h:mm (ex.: 4:00) ou hh:mm"')}${sel('rStatus', 'Estado', r.status || 'provisoria', [['provisoria', 'Provisória'], ['final', 'Final']])}</div>
     <div class="row spread">${delBtn('raceDel', id, 'Apagar regata')}<button class="btn pri" data-a="raceSave" data-id="${esc(id || '')}">Gravar</button></div>`);
 }
 function openEntriesForm(eid) {
@@ -609,7 +611,7 @@ async function readSheet(raceId) {
     const blob = await fetch('/_blob/' + pid).then(r => r.blob());
     const ids = ev.entries || [];
     const fleet = ids.filter(id => S.boats[id]).map(id => { const b = S.boats[id]; return `${id} | ${b.name} | ${(b.aka || []).join('/')} | ${b.sail || ''} | ${b.type || ''} | ${skipperName(b.skipperId)}`; }).join('\n');
-    const prompt = `És secretário de regata. Lê a folha de chegadas manuscrita da fotografia (regata "${race.name}", largada ${race.start}).
+    const prompt = `És secretário de regata. Lê a folha de chegadas manuscrita da fotografia (regata "${race.name}", largada ${race.start || 'desconhecida: lê-a da folha'}).
 Devolve APENAS JSON com esta forma: {"start":"hh:mm:ss ou null","finishes":[{"read":"nome como está escrito","boatId":"id da lista ou null","finish":"hh:mm:ss ou null","code":"FIN|DNF|DNS|RET|OCS|BFD|UFD|DSQ"}],"notes":"observações curtas em português"}
 Regras: ordem = ordem de chegada. Os nomes podem estar escritos meia linha acima ou abaixo da hora: emparelha pela ordem. Usa a hora de chegada, não o tempo de regata. Barcos na zona de "desclassificados"/siglas recebem a sigla (code) e finish null. Ignora listas de verificação ao lado. Se a hora tiver só minutos e segundos, completa com a hora da linha anterior. A folha pode identificar o barco pelo nome, número de vela ou skipper.
 Barcos inscritos (id | nome | outros nomes | vela | tipo | skipper):
@@ -618,6 +620,9 @@ ${fleet}`;
     const list = (res && res.finishes) || [];
     const prop = list.map(f => ({ boatId: S.boats[f.boatId] ? f.boatId : '', finish: f.finish || '', code: f.code || 'FIN', read: f.read || '' }));
     openFinishEditor(raceId, prop);
+    const rs0 = res && res.start && E.secs(res.start) != null ? String(res.start) : '';
+    if (rs0 && rs0 !== race.start) { S.edit.start = rs0; S.edit.startNote = race.start ? `Largada lida na folha: ${rs0} (antes: ${race.start}). Confirme.` : `Largada lida na folha: ${rs0}. Confirme.`; drawFinishEditor(); }
+    else if (!race.start && !rs0) { S.edit.startNote = 'A folha não tem a hora de largada legível: escreva-a acima.'; drawFinishEditor(); }
     if (res && res.notes) $('#dlgB').insertAdjacentHTML('afterbegin', `<div class="info small">Notas da leitura: ${esc(res.notes)}${res.start ? ' · largada lida: ' + esc(res.start) : ''}. Confirme cada linha antes de gravar.</div>`);
   } catch (e) {
     dialog('Ler folha com o Claude', `<div class="warn">Não foi possível ler a folha (${esc(e.code || e.message || e)}). Introduza as chegadas à mão.</div>`);
@@ -634,7 +639,7 @@ async function shrink(file) {
 
 /* ---------- exportação ---------- */
 function ctxSeries(groupKey) {
-  const cid = ctxId(), c = S.champs[cid], rs = champRaces(cid);
+  const cid = ctxId(), c = S.champs[cid], rs = champRaces(cid).filter(E.isScored);
   return { rs, rules: c, st: E.seriesStandings(rs, dbState(), { champ: c, filter: groupFilter(groupKey, c), boats: champEntries(cid) }) };
 }
 function ctxName() { return S.champs[ctxId()].name; }
@@ -708,8 +713,10 @@ async function onClick(e) {
     const rows = S.edit.rows.filter(r => r.boatId).map(r => { const o = { boatId: r.boatId }; if (r.code && r.code !== 'FIN') o.code = r.code; else o.finish = r.finish; if (r.code && r.code !== 'FIN' && r.finish) o.finish = r.finish; return o; });
     const ids = rows.map(r => r.boatId); if (new Set(ids).size !== ids.length) { toast('Há barcos repetidos.'); return; }
     const bad = rows.find(r => !r.code && E.secs(r.finish) == null); if (bad) { toast('Falta a hora de ' + S.boats[bad.boatId].name + '.'); return; }
-    const r = clone(S.races[S.edit.id]); r.finishes = rows;
-    if (await save('races', S.edit.id, r)) { toast('Chegadas gravadas.'); closeDlg(); }
+    const st = (S.edit.start || '').trim();
+    if (st && E.secs(st) == null) { toast('Hora de largada inválida (hh:mm:ss).'); return; }
+    const r = clone(S.races[S.edit.id]); r.finishes = rows; r.start = st;
+    if (await save('races', S.edit.id, r)) { toast(st ? 'Chegadas gravadas.' : 'Chegadas gravadas · falta a hora de largada para calcular.'); closeDlg(); }
   }
   else if (a === 'enroll') {
     const evs = champEvents(ctxId());
@@ -784,10 +791,14 @@ async function onClick(e) {
     if (await del('events', id)) { closeDlg(); pickCtx(); location.hash = 'regatas'; }
   }
   else if (a === 'raceSave') {
-    if (!v('rName') || !v('rDate') || !v('rEvent') || E.secs(v('rStart')) == null) { toast('Preencha nome, prova, data e hora de largada.'); return; }
+    if (!v('rName') || !v('rDate') || !v('rEvent')) { toast('Preencha nome, prova e data.'); return; }
+    if (v('rStart') && E.secs(v('rStart')) == null) { toast('Hora de largada inválida (hh:mm:ss).'); return; }
+    if (v('rLim') && E.secs(v('rLim')) == null) { toast('Tempo limite inválido (h:mm).'); return; }
     if (v('rSys').startsWith('ToD') && !v('rDist')) { toast('Para ToD indique a distância do percurso.'); return; }
     const base = id ? clone(S.races[id]) : { finishes: [] };
-    Object.assign(base, { name: v('rName'), event: v('rEvent'), date: v('rDate'), start: v('rStart').replace(/[.,h]/g, ':'), system: v('rSys'), distance: v('rDist') ? Number(v('rDist').replace(',', '.')) : null, timeLimit: v('rLim').replace(/[.,h]/g, ':'), status: v('rStatus') });
+    Object.assign(base, { name: v('rName'), event: v('rEvent'), date: v('rDate'), start: v('rStart').replace(/[.,h]/g, ':'), system: v('rSys'), distance: v('rDist') ? Number(v('rDist').replace(',', '.')) : null, status: v('rStatus') });
+    const lim = v('rLim').replace(/[.,h]/g, ':');
+    if (v('rLimMode') === 'dur') { base.timeLimitDur = lim; base.timeLimit = ''; } else { base.timeLimit = lim; base.timeLimitDur = ''; }
     const rid = id || uniqueId('races', slug(v('rEvent') + '-' + v('rName')));
     if (await save('races', rid, base)) {
       const ev = S.events[base.event];
