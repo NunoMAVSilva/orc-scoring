@@ -1,0 +1,19 @@
+{
+  "certs": [
+    {
+      "CDL": 9.922,
+      "ToD_CL": 611,
+      "ToT_CL": 0.982,
+      "ToT_WL": 0.8587,
+      "from": "2026-03-17",
+      "kind": "copiado",
+      "src": "ALS GRE 2026"
+    }
+  ],
+  "club": "GCNFaro",
+  "div": "A",
+  "name": "STELLA MARIS",
+  "sail": "8585",
+  "skipper": "Miguel Galvão",
+  "type": "DUFOUR 425 GL"
+}

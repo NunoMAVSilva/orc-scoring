@@ -1,0 +1,19 @@
+{
+  "certs": [
+    {
+      "CDL": 8.355,
+      "ToD_CL": 636.3,
+      "ToT_CL": 0.943,
+      "ToT_WL": 0.8369,
+      "from": "2026-04-30",
+      "kind": "orc",
+      "src": "POR 2026"
+    }
+  ],
+  "club": "CVLagos",
+  "div": "C",
+  "name": "SULA-TOO",
+  "sail": "GBR 6831T",
+  "skipper": "Paul Kent",
+  "type": "ELAN 333"
+}

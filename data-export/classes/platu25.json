@@ -1,0 +1,23 @@
+{
+  "certs": [
+    {
+      "CDL": 7.327,
+      "ToD_CL": 641.7,
+      "ToT_CL": 0.935,
+      "ToT_WL": 0.8325,
+      "from": "2025-01-01",
+      "kind": "classe",
+      "src": "classe 2025"
+    },
+    {
+      "CDL": 7.306,
+      "ToD_CL": 643,
+      "ToT_CL": 0.9331,
+      "ToT_WL": 0.8306,
+      "from": "2026-03-19",
+      "kind": "classe",
+      "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+    }
+  ],
+  "name": "PLATU 25 OD"
+}

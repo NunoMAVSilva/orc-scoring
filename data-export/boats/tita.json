@@ -1,0 +1,27 @@
+{
+  "certs": [
+    {
+      "ToD_CL": 592.9,
+      "ToT_CL": 1.012,
+      "ToT_WL": 0.8932,
+      "from": "2025-01-01",
+      "kind": "derivado",
+      "src": "derivado Cidade 2025"
+    },
+    {
+      "ToD_CL": 592.9,
+      "ToT_CL": 1.012,
+      "ToT_WL": 0.8936,
+      "from": "2026-04-29",
+      "kind": "derivado",
+      "src": "derivado Cidade 2026"
+    }
+  ],
+  "club": "",
+  "div": "A",
+  "name": "TITÃ",
+  "note": "Derivado: fator 1.0120/ToT costal Cidade de Faro aplicado a todos os valores",
+  "sail": "",
+  "skipper": "Francisco Badalo",
+  "type": "PROTÓTIPO FB35"
+}

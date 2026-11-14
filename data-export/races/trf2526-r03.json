@@ -1,0 +1,54 @@
+{
+  "champ": "trf2526",
+  "date": "2026-01-17",
+  "event": "Regata Aniversário GCNF",
+  "finishes": [
+    {
+      "boatId": "paquito",
+      "finish": "12:37:05"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "12:37:34"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "12:39:08"
+    },
+    {
+      "boatId": "troton",
+      "finish": "12:41:08"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "12:43:18"
+    },
+    {
+      "boatId": "magano",
+      "finish": "12:45:35"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "12:52:30"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "12:58:28"
+    },
+    {
+      "boatId": "x-ufo",
+      "finish": "13:07:39"
+    },
+    {
+      "boatId": "tita",
+      "code": "RET",
+      "finish": ""
+    }
+  ],
+  "n": 3,
+  "name": "Aniversário R1",
+  "start": "11:40:00",
+  "status": "final",
+  "system": "ToT_WL",
+  "timeLimit": ""
+}

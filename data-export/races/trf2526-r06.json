@@ -1,0 +1,71 @@
+{
+  "champ": "trf2526",
+  "date": "2026-03-28",
+  "distance": null,
+  "event": "GP Hangares",
+  "finishes": [
+    {
+      "boatId": "too-much",
+      "finish": "12:55:27"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "13:01:02"
+    },
+    {
+      "boatId": "tita",
+      "finish": "13:02:50"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "13:03:16"
+    },
+    {
+      "boatId": "troton",
+      "finish": "13:03:35"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "13:23:06"
+    },
+    {
+      "boatId": "stella-maris",
+      "finish": "13:33:51"
+    },
+    {
+      "boatId": "jafoste",
+      "finish": "13:40:26"
+    },
+    {
+      "boatId": "sta-teresinha",
+      "finish": "13:56:36"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "13:59:34"
+    },
+    {
+      "boatId": "berlenga",
+      "finish": "14:00:47"
+    },
+    {
+      "boatId": "corto-maltese",
+      "finish": "14:03:56"
+    },
+    {
+      "boatId": "ultramarine",
+      "finish": "14:55:08"
+    },
+    {
+      "boatId": "lpaz",
+      "code": "RET",
+      "finish": ""
+    }
+  ],
+  "n": 6,
+  "name": "Grande Prémio dos Hangares",
+  "start": "11:10:00",
+  "status": "final",
+  "system": "ToT_CL",
+  "timeLimit": "15:40:00"
+}

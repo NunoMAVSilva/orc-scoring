@@ -1,0 +1,44 @@
+{
+  "classGroups": [
+    "platu25"
+  ],
+  "club": "Ginásio Clube Naval de Faro",
+  "discards": [
+    {
+      "n": 0,
+      "upTo": 3
+    },
+    {
+      "n": 1,
+      "upTo": 8
+    },
+    {
+      "n": 2,
+      "upTo": 999
+    }
+  ],
+  "divLimits": {
+    "A": 9.9,
+    "B": 8.8
+  },
+  "groups": [
+    "A",
+    "B",
+    "C",
+    "SB"
+  ],
+  "name": "Troféu Ria Formosa 2025/2026",
+  "order": [
+    "trf2526-r01",
+    "trf2526-r02",
+    "trf2526-r03",
+    "trf2526-r04",
+    "trf2526-r05",
+    "trf2526-r06",
+    "trf2526-r07",
+    "trf2526-r08",
+    "trf2526-r09",
+    "trf2526-r10"
+  ],
+  "season": "2025/26"
+}
