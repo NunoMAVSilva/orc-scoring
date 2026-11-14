@@ -71,11 +71,15 @@
     const sys = race.system;
     const rows = [];
     const problems = [];
-    // sem hora de largada ainda não se pode calcular: devolve as chegadas como pendentes
-    if (st == null) {
-      if ((race.finishes || []).length) problems.push('Falta a hora de largada: leia-a da folha de chegadas ou escreva-a no editor de chegadas.');
+    // sem hora de largada (ou sem distância em ToD) ainda não se pode calcular: chegadas pendentes
+    const noDist = String(sys || '').startsWith('ToD') && !(Number(race.distance) > 0);
+    if (st == null || noDist) {
+      if ((race.finishes || []).length) {
+        if (st == null) problems.push('Falta a hora de largada: leia-a da folha de chegadas ou escreva-a no editor de chegadas.');
+        if (noDist) problems.push('Falta a distância do percurso (ToD): leia-a da folha de chegadas ou escreva-a no editor de chegadas.');
+      }
       for (const f of race.finishes || []) { const boat = db.boats[f.boatId]; if (boat) rows.push({ boatId: f.boatId, name: boat.name, note: f.note || '', finish: f.finish || '', code: f.code && f.code !== 'FIN' ? f.code : undefined, pending: true }); }
-      return { rows, problems, pending: true };
+      return { rows, problems, pending: st == null ? 'largada' : 'distância' };
     }
     // tempo limite: duração após a largada (timeLimitDur) ou hora absoluta (timeLimit)
     const limDur = race.timeLimitDur ? secs(race.timeLimitDur) : null;
@@ -98,7 +102,6 @@
       row.rating = r.value; row.certSrc = r.cert.src || '';
       if (sys.startsWith('ToT')) row.corrected = Math.round(el * r.value);
       else row.corrected = Math.round(el - r.value * Number(race.distance || 0));
-      if (sys.startsWith('ToD') && !race.distance) problems.push('ToD sem distância definida');
       rows.push(row);
     }
     if (f_dupes(race)) problems.push('Há barcos repetidos na regata');
@@ -129,7 +132,7 @@
   function raceResults(race, db, filterFn) {
     const { rows, problems, pending } = scoreRace(race, db);
     const sel = rows.filter(r => !filterFn || filterFn(db.boats[r.boatId], r.boatId)).map(r => Object.assign({}, r));
-    return { rows: pending ? sel : placeRows(sel), problems, pending: !!pending };
+    return { rows: pending ? sel : placeRows(sel), problems, pending: pending || false };
   }
 
   function nDiscards(champ, nRaces) {
@@ -179,7 +182,7 @@
   }
 
   // uma regata só conta para classificações quando tem largada e chegadas
-  function isScored(race) { return secs(race.start) != null && (race.finishes || []).length > 0; }
+  function isScored(race) { return secs(race.start) != null && (race.finishes || []).length > 0 && !(String(race.system || '').startsWith('ToD') && !(Number(race.distance) > 0)); }
   const api = { isScored, secs, hms, hms2, certValue, certAt, ratingAt, divisionOf, scoreRace, raceResults, seriesStandings, nDiscards, IN_RACE_CODES, SYSTEMS };
   if (typeof module !== 'undefined') module.exports = api; else root.ORC = api;
 })(this);
