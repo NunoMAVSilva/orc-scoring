@@ -71,6 +71,14 @@
     const sys = race.system;
     const rows = [];
     const problems = [];
+    // sem hora de largada ainda não se pode calcular: devolve as chegadas como pendentes
+    if (st == null) {
+      if ((race.finishes || []).length) problems.push('Falta a hora de largada: leia-a da folha de chegadas ou escreva-a no editor de chegadas.');
+      for (const f of race.finishes || []) { const boat = db.boats[f.boatId]; if (boat) rows.push({ boatId: f.boatId, name: boat.name, note: f.note || '', finish: f.finish || '', code: f.code && f.code !== 'FIN' ? f.code : undefined, pending: true }); }
+      return { rows, problems, pending: true };
+    }
+    // tempo limite: duração após a largada (timeLimitDur) ou hora absoluta (timeLimit)
+    const limDur = race.timeLimitDur ? secs(race.timeLimitDur) : null;
     for (const f of race.finishes || []) {
       const boat = db.boats[f.boatId];
       if (!boat) continue;
@@ -81,7 +89,7 @@
       if (f.dayOffset) fin += 86400 * f.dayOffset;
       const el = fin - st;
       row.finish = f.finish; row.elapsed = el;
-      if (race.timeLimit && secs(race.timeLimit) != null && fin > secs(race.timeLimit) + 86400 * (f.dayOffset || 0)) {
+      if ((limDur != null && el > limDur) || (limDur == null && race.timeLimit && secs(race.timeLimit) != null && fin > secs(race.timeLimit) + 86400 * (f.dayOffset || 0))) {
         row.code = 'DNF'; row.note = 'chegou fora do tempo limite'; rows.push(row); continue;
       }
       if (el <= 0 || el > 36 * 3600) problems.push(`${boat.name}: tempo decorrido estranho (${hms2(el)})`);
@@ -119,9 +127,9 @@
   }
 
   function raceResults(race, db, filterFn) {
-    const { rows, problems } = scoreRace(race, db);
+    const { rows, problems, pending } = scoreRace(race, db);
     const sel = rows.filter(r => !filterFn || filterFn(db.boats[r.boatId], r.boatId)).map(r => Object.assign({}, r));
-    return { rows: placeRows(sel), problems };
+    return { rows: pending ? sel : placeRows(sel), problems, pending: !!pending };
   }
 
   function nDiscards(champ, nRaces) {
@@ -170,6 +178,8 @@
     return { table, dnc, nDiscards: nd };
   }
 
-  const api = { secs, hms, hms2, certValue, certAt, ratingAt, divisionOf, scoreRace, raceResults, seriesStandings, nDiscards, IN_RACE_CODES, SYSTEMS };
+  // uma regata só conta para classificações quando tem largada e chegadas
+  function isScored(race) { return secs(race.start) != null && (race.finishes || []).length > 0; }
+  const api = { isScored, secs, hms, hms2, certValue, certAt, ratingAt, divisionOf, scoreRace, raceResults, seriesStandings, nDiscards, IN_RACE_CODES, SYSTEMS };
   if (typeof module !== 'undefined') module.exports = api; else root.ORC = api;
 })(this);
