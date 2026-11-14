@@ -45,10 +45,20 @@ function ctxKind() { return S.ctx ? S.ctx[0] : null; }
 function ctxId() { return S.ctx ? S.ctx.slice(2) : null; }
 function ctxRules() { return S.champs[ctxId()]; }
 function ctxEvents() { return champEvents(ctxId()); }
-function divOf(b, rules) { return E.divisionOf(b, '', dbState(), rules || ctxRules()); }
+/* ORC Open (opção do campeonato): barcos sem certificado ORC próprio válido para o ano do evento
+   (copiado, derivado, manual, teste, ou de outro ano) saem das divisões ORC e vão para o grupo ORC Open. */
+const VALID_ORC_KINDS = ['orc', 'classe'];
+function hasValidOrc(b, rules) {
+  const day = (rules && rules.dateFrom) || today(), year = day.slice(0, 4);
+  const c = E.certAt(b, (rules && rules.dateTo) || day, dbState());
+  return !!c && VALID_ORC_KINDS.includes(c.kind || 'orc') && String(c.from || '').slice(0, 4) === year;
+}
+function isOpen(b, rules) { rules = rules || ctxRules(); return !!(rules && rules.openGroup) && !hasValidOrc(b, rules); }
+function divOf(b, rules) { rules = rules || ctxRules(); return isOpen(b, rules) ? 'OPEN' : E.divisionOf(b, '', dbState(), rules); }
 function groupsOf(rules) {
   const g = [{ k: 'GERAL', t: 'Geral' }];
   ((rules && rules.groups) || DEFAULT_RULES.groups).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d }));
+  if (rules && rules.openGroup) g.push({ k: 'OPEN', t: 'ORC Open' });
   ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name }));
   return g;
 }
@@ -56,12 +66,13 @@ function groupFilter(k, rules) {
   if (k === 'GERAL') return null;
   if (k.startsWith('DIV:')) { const d = k.slice(4); return b => divOf(b, rules) === d; }
   if (k.startsWith('CLS:')) { const c = k.slice(4); return b => b.classRef === c; }
+  if (k === 'OPEN') return b => isOpen(b, rules);
   return null;
 }
 const clubShort = id => (S.clubs[id] && (S.clubs[id].short || S.clubs[id].name)) || '';
 const skipperName = id => (S.skippers[id] && S.skippers[id].name) || '';
 function boatSub(b) { return [b.sail, b.type, clubShort(b.clubId)].filter(Boolean).join(' · '); }
-function divChip(b, rules) { const d = divOf(b, rules); return `<span class="chip div-${esc(d)}">${esc(d)}</span>`; }
+function divChip(b, rules) { const d = divOf(b, rules); return `<span class="chip div-${esc(d)}">${d === 'OPEN' ? 'Open' : esc(d)}</span>`; }
 function evDates(e) { return e.dateFrom && e.dateTo && e.dateTo !== e.dateFrom ? `${dPT(e.dateFrom)} a ${dPT(e.dateTo)}` : dPT(e.dateFrom); }
 
 /* ---------- arranque / dados ---------- */
@@ -415,6 +426,7 @@ function rulesFields(r) {
   return `${field('cDisc', 'Descartes (até N regatas: descartes)', (r.discards || []).map(d => d.upTo + ':' + d.n).join(', '), 'placeholder="3:0, 8:1, 999:2"')}
     ${field('cA', 'Divisão A: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).A, 'inputmode="decimal"')}${field('cB', 'Divisão B: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).B, 'inputmode="decimal"')}
     ${field('cGroups', 'Divisões a classificar', (r.groups || []).join(', '))}</div>
+    <label class="row small" style="margin-top:4px"><input type="checkbox" id="cOpen" ${r.openGroup ? 'checked' : ''}> <span><b>ORC Open</b> — barcos sem certificado ORC próprio válido para o ano do evento (copiado, derivado, manual ou de outro ano) saem das divisões e formam o grupo ORC Open</span></label>
     <div class="small muted">Classificações por classe (monotipias):</div><div class="row">${Object.entries(S.classes).map(([k, cl]) => `<label class="row small"><input type="checkbox" class="cCls" value="${esc(k)}" ${(r.classGroups || []).includes(k) ? 'checked' : ''}> ${esc(cl.name)}</label>`).join('') || '<span class="small muted">Sem classes definidas.</span>'}</div>`;
 }
 function readRules() {
@@ -423,6 +435,7 @@ function readRules() {
     divLimits: { A: Number(v('cA').replace(',', '.')), B: Number(v('cB').replace(',', '.')) },
     groups: v('cGroups').split(',').map(s => s.trim()).filter(Boolean),
     classGroups: [...document.querySelectorAll('.cCls:checked')].map(x => x.value),
+    openGroup: !!($('#cOpen') && $('#cOpen').checked),
   };
 }
 function openChampForm(id) {

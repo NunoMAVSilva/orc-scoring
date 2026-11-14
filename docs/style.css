@@ -59,6 +59,7 @@ nav.bottom a.on { color: var(--accent); }
 .chip { display: inline-block; padding: 1px 8px; border-radius: 99px; background: var(--chip); font-size: .75rem; font-weight: 600; white-space: nowrap; }
 .chip.div-A { background: #c8102e; color: #fff; } .chip.div-B { background: #0b5cad; color: #fff; }
 .chip.div-C { background: #1d7a46; color: #fff; } .chip.div-SB { background: #f2b705; color: #2a1f00; }
+.chip.div-OPEN { background: #6b4fa0; color: #fff; }
 .chip.k-orc { background: #dbeafe; color: #0b3b75; } .chip.k-teste { background: #fff3c4; color: #5c4500; }
 .chip.k-copiado, .chip.k-derivado { background: #ffe1d6; color: #7a2a0a; } .chip.k-manual { background: #eee; color: #444; }
 .chip.k-classe { background: #e0f2e9; color: #134d2d; }
