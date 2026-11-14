@@ -2,7 +2,7 @@
 
 Classificações ORC (ToT/ToD/GPH, pontuação baixa RRS Apêndice A, descartes, desempates A8).
 
-Estrutura: **Campeonato → Prova (evento, com inscritos) → Regatas**. Uma prova pode ser avulsa (sem campeonato, com regras próprias). As classificações só incluem barcos inscritos; inscritos sem resultado numa regata ficam DNC.
+Estrutura: **Campeonato → Prova (evento, com inscritos) → Regatas**. Uma prova única é um campeonato com uma só prova. As classificações só incluem barcos inscritos; inscritos sem resultado numa regata ficam DNC.
 
 | Pasta | O que é |
 |---|---|

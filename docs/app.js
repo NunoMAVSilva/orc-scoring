@@ -35,8 +35,8 @@ function rulesOfEvent(ev) { return ev && ev.champ && S.champs[ev.champ] ? S.cham
 function rulesOfRace(r) { return rulesOfEvent(S.events[r.event]); }
 function ctxKind() { return S.ctx ? S.ctx[0] : null; }
 function ctxId() { return S.ctx ? S.ctx.slice(2) : null; }
-function ctxRules() { return ctxKind() === 'c' ? S.champs[ctxId()] : rulesOfEvent(S.events[ctxId()]); }
-function ctxEvents() { return ctxKind() === 'c' ? champEvents(ctxId()) : (S.events[ctxId()] ? [[ctxId(), S.events[ctxId()]]] : []); }
+function ctxRules() { return S.champs[ctxId()]; }
+function ctxEvents() { return champEvents(ctxId()); }
 function divOf(b, rules) { return E.divisionOf(b, '', dbState(), rules || ctxRules()); }
 function groupsOf(rules) {
   const g = [{ k: 'GERAL', t: 'Geral' }];
@@ -63,7 +63,6 @@ async function init() {
   $('#ctxSel').onchange = e => {
     const v = e.target.value;
     if (v === '__newC') { e.target.value = S.ctx || ''; return openChampForm(null); }
-    if (v === '__newE') { e.target.value = S.ctx || ''; return openEventForm(null, null); }
     S.ctx = v; try { localStorage.setItem('ctx', v); } catch (_) {}
     S.group = 'GERAL'; location.hash = 'classificacao'; render();
   };
@@ -100,16 +99,14 @@ function downloadFile(filename, data) {
 const updatedNote = () => STATIC && S.exportedAt ? ` · Atualizado a ${dPT(S.exportedAt.slice(0, 10))} às ${new Date(S.exportedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' })}.` : '';
 function pickCtx() {
   const champs = Object.entries(S.champs).sort((a, b) => (b[1].season || '').localeCompare(a[1].season || ''));
-  const loose = Object.entries(S.events).filter(([, e]) => !e.champ || !S.champs[e.champ]).sort((a, b) => (b[1].dateFrom || '').localeCompare(a[1].dateFrom || ''));
-  const valid = v => v && ((v[0] === 'c' && S.champs[v.slice(2)]) || (v[0] === 'e' && S.events[v.slice(2)]));
+  const valid = v => v && v[0] === 'c' && S.champs[v.slice(2)];
   let saved = null; try { saved = localStorage.getItem('ctx'); } catch (_) {}
-  if (!valid(S.ctx)) S.ctx = valid(saved) ? saved : champs[0] ? 'c:' + champs[0][0] : loose[0] ? 'e:' + loose[0][0] : null;
+  if (!valid(S.ctx)) S.ctx = valid(saved) ? saved : champs[0] ? 'c:' + champs[0][0] : null;
   const opt = (v, t) => `<option value="${esc(v)}" ${v === S.ctx ? 'selected' : ''}>${esc(t)}</option>`;
-  $('#ctxSel').innerHTML = (champs.length ? `<optgroup label="Campeonatos">${champs.map(([id, c]) => opt('c:' + id, c.name)).join('')}</optgroup>` : '')
-    + (loose.length ? `<optgroup label="Provas avulsas">${loose.map(([id, e]) => opt('e:' + id, e.name)).join('')}</optgroup>` : '')
-    + (S.canEdit ? '<optgroup label="Criar"><option value="__newC">+ Novo campeonato</option><option value="__newE">+ Nova prova avulsa</option></optgroup>' : '');
+  $('#ctxSel').innerHTML = champs.map(([id, c]) => opt('c:' + id, c.name)).join('')
+    + (S.canEdit ? '<option value="__newC">+ Criar campeonato</option>' : '');
   if (!S.ctx) $('#ctxSel').insertAdjacentHTML('afterbegin', '<option value="" selected>—</option>');
-  const c = ctxKind() === 'c' ? S.champs[ctxId()] : S.events[ctxId()];
+  const c = S.ctx ? S.champs[ctxId()] : null;
   $('#clubName').textContent = c ? (S.clubs[c.clubId] || {}).name || '' : '';
 }
 async function save(col, id, data) {
@@ -137,10 +134,9 @@ function render() {
 
 /* ---------- classificações ---------- */
 function viewStandings() {
-  if (!S.ctx) return `<div class="empty">Ainda não há campeonatos nem provas.${S.canEdit ? '<br><br><button class="btn pri" data-a="newChamp">Criar campeonato</button> <button class="btn" data-a="newEvent">Criar prova avulsa</button>' : ''}</div>`;
-  if (ctxKind() === 'e') return eventStandingsPage(ctxId());
+  if (!S.ctx) return `<div class="empty">Ainda não há campeonatos.${S.canEdit ? '<br><br><button class="btn pri" data-a="newChamp">Criar campeonato</button>' : ''}</div>`;
   const cid = ctxId(), c = S.champs[cid], races = champRaces(cid);
-  const tabs = groupsOf(c).concat([{ k: 'PROVAS', t: 'Por prova' }]);
+  const tabs = groupsOf(c).concat(champEvents(cid).length > 1 ? [{ k: 'PROVAS', t: 'Por prova' }] : []);
   if (!tabs.find(t => t.k === S.group)) S.group = 'GERAL';
   let body;
   if (S.group === 'PROVAS') body = champEvents(cid).map(([eid, e]) => {
@@ -160,19 +156,10 @@ function viewStandings() {
 }
 function eventStandings(eid, groupKey) {
   const e = S.events[eid], rules = rulesOfEvent(e), rs = eventRaces(eid);
-  const opts = e.champ ? { discards: 0 } : { champ: rules };
+  // prova única no campeonato: aplica as regras (descartes) do campeonato; várias provas: soma sem descartes
+  const single = champEvents(e.champ).length <= 1;
+  const opts = single ? { champ: rules } : { discards: 0 };
   return { rs, rules, st: E.seriesStandings(rs, dbState(), Object.assign(opts, { filter: groupFilter(groupKey, rules), boats: e.entries || [] })) };
-}
-function eventStandingsPage(eid) {
-  const e = S.events[eid];
-  if (!e) return '<div class="empty">Prova não encontrada.</div>';
-  const rules = rulesOfEvent(e), tabs = groupsOf(rules);
-  if (!tabs.find(t => t.k === S.group)) S.group = 'GERAL';
-  const { rs, st } = eventStandings(eid, S.group);
-  return `<section class="row spread"><div><h1>${esc(e.name)}</h1><div class="small muted">${evDates(e)} · ${rs.length} regata(s) · ${(e.entries || []).length} inscritos</div></div>
-    <div class="row"><a class="btn sm" href="#prova-${esc(eid)}" style="text-decoration:none;color:inherit">Ver prova</a><button class="btn sm" data-a="export">Exportar</button></div></section>
-    <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
-    ${standingsTable(st, rs, rules)}<p class="small muted">DNC = ${st.dnc} pontos · ${st.nDiscards} descarte(s) · desempates RRS A8.${updatedNote()}</p>`;
 }
 function standingsTable(st, races, rules) {
   if (!st.table.length) return '<div class="empty">Sem resultados ainda.</div>';
@@ -187,7 +174,7 @@ function standingsTable(st, races, rules) {
 
 /* ---------- provas ---------- */
 function viewEvents() {
-  if (!S.ctx) return '<div class="empty">Crie primeiro um campeonato ou uma prova avulsa.</div>';
+  if (!S.ctx) return '<div class="empty">Crie primeiro um campeonato.</div>';
   const evs = ctxEvents();
   const items = evs.map(([eid, e]) => {
     const rs = eventRaces(eid);
@@ -195,9 +182,8 @@ function viewEvents() {
       <div class="meta">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''} · ${rs.length} regata(s) · ${(e.entries || []).length} inscritos</div></div>
       <span class="chip st-${rs.length && rs.every(r => r.status === 'final') ? 'final' : 'provisoria'}">${rs.length && rs.every(r => r.status === 'final') ? 'Final' : rs.length ? 'Provisória' : 'Por correr'}</span></a>`;
   }).join('');
-  const title = ctxKind() === 'c' ? 'Provas · ' + esc(S.champs[ctxId()].name) : 'Prova avulsa';
-  return `<section class="row spread"><h1>${title}</h1>${S.canEdit && ctxKind() === 'c' ? `<button class="btn pri" data-a="newEvent" data-c="${esc(ctxId())}">+ Nova prova</button>` : ''}</section>
-    <div class="list">${items || '<div class="empty">Sem provas.</div>'}</div>`;
+  return `<section class="row spread"><h1>Provas · ${esc(S.champs[ctxId()].name)}</h1>${S.canEdit ? `<button class="btn pri" data-a="newEvent" data-c="${esc(ctxId())}">+ Nova prova</button>` : ''}</section>
+    <div class="list">${items || '<div class="empty">Ainda sem provas neste campeonato.</div>'}</div>`;
 }
 function viewEvent(eid) {
   const e = S.events[eid];
@@ -215,12 +201,12 @@ function viewEvent(eid) {
   if (!tabs.find(t => t.k === S.evGroup)) S.evGroup = 'GERAL';
   const { st } = eventStandings(eid, S.evGroup);
   const champ = e.champ && S.champs[e.champ];
-  return `<section><div class="small muted"><a href="#provas">Provas</a>${champ ? ' · ' + esc(champ.name) : ' · prova avulsa'}</div>
+  return `<section><div class="small muted"><a href="#provas">Provas</a>${champ ? ' · ' + esc(champ.name) : ''}</div>
       <div class="row spread"><h1>${esc(e.name)}</h1>${S.canEdit ? `<button class="btn sm" data-a="editEvent" data-id="${esc(eid)}">Editar prova</button>` : ''}</div>
       <div class="muted">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''}${S.clubs[e.clubId] ? ' · ' + esc(S.clubs[e.clubId].name) : ''}</div></section>
     <div class="card"><div class="row spread"><h3>Regatas</h3>${S.canEdit ? `<button class="btn sm pri" data-a="newRace" data-e="${esc(eid)}">+ Nova regata</button>` : ''}</div>
       <div class="list">${raceItems || '<div class="small muted">Ainda sem regatas.</div>'}</div></div>
-    <div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champ ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
+    <div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
       <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
       ${standingsTable(st, rs, rules)}</div>
     <div class="card"><div class="row spread"><h3>Inscritos (${entries.length})</h3>${S.canEdit ? `<button class="btn sm pri" data-a="entries" data-id="${esc(eid)}">Gerir inscrições</button>` : ''}</div>
@@ -365,15 +351,19 @@ function openChampForm(id) {
   const c = id ? S.champs[id] : Object.assign({ name: '', season: '', clubId: '' }, clone(DEFAULT_RULES));
   dialog(id ? 'Definições do campeonato' : 'Novo campeonato', `<div class="grid-f">${field('cName', 'Nome', c.name)}${field('cSeason', 'Época', c.season, 'placeholder="2026/27"')}${sel('cClub', 'Clube organizador', c.clubId, clubOpts())}
     ${rulesFields(c)}
+    ${id ? '' : `<label class="row small" style="margin-top:4px"><input type="checkbox" id="cSingle"> Prova única: criar já uma prova com o mesmo nome</label>
+    <div class="grid-f" id="cSingleF" hidden>${field('cFrom', 'Data de início', today(), 'type="date"')}${field('cTo', 'Data de fim', today(), 'type="date"')}${field('cVenue', 'Local', '', 'placeholder="ex.: Ria Formosa"')}</div>`}
     <div class="row spread">${delBtn('champDel', id, 'Apagar campeonato')}<button class="btn pri" data-a="champSave" data-id="${esc(id || '')}">Gravar</button></div>`);
+  if (!id) $('#cSingle').onchange = () => { $('#cSingleF').hidden = !$('#cSingle').checked; };
 }
 function openEventForm(id, champId) {
-  const e = id ? S.events[id] : Object.assign({ name: '', champ: champId || '', clubId: champId && S.champs[champId] ? S.champs[champId].clubId : '', dateFrom: today(), dateTo: today(), venue: '', entries: [] }, champId ? {} : clone(DEFAULT_RULES));
-  const champOpts = [['', '— prova avulsa —']].concat(Object.entries(S.champs).map(([k, c]) => [k, c.name]));
+  champId = champId || ctxId();
+  const e = id ? S.events[id] : { name: '', champ: champId || '', clubId: champId && S.champs[champId] ? S.champs[champId].clubId : '', dateFrom: today(), dateTo: today(), venue: '', entries: [] };
+  const champOpts = Object.entries(S.champs).map(([k, c]) => [k, c.name]);
   dialog(id ? 'Editar prova' : 'Nova prova', `<div class="grid-f">${field('eName', 'Nome da prova', e.name)}${sel('eChamp', 'Campeonato', e.champ || '', champOpts)}
     ${field('eFrom', 'Data de início', e.dateFrom, 'type="date"')}${field('eTo', 'Data de fim', e.dateTo, 'type="date"')}
     ${sel('eClub', 'Clube organizador', e.clubId, clubOpts())}${field('eVenue', 'Local', e.venue, 'placeholder="ex.: Ria Formosa"')}</div>
-    <details ${e.champ ? '' : 'open'}><summary class="small">Regras (só para provas avulsas; dentro de um campeonato usam-se as do campeonato)</summary><div class="grid-f" style="margin-top:8px">${rulesFields(e.champ ? Object.assign({}, DEFAULT_RULES, e) : e)}</details>
+    <div class="small muted">Descartes e divisões seguem as definições do campeonato.</div>
     <div class="row spread">${delBtn('eventDel', id, 'Apagar prova')}<button class="btn pri" data-a="eventSave" data-id="${esc(id || '')}">Gravar</button></div>`);
 }
 function openRaceForm(id, eventId) {
@@ -503,11 +493,10 @@ async function shrink(file) {
 
 /* ---------- exportação ---------- */
 function ctxSeries(groupKey) {
-  if (ctxKind() === 'e') return eventStandings(ctxId(), groupKey);
   const cid = ctxId(), c = S.champs[cid], rs = champRaces(cid);
   return { rs, rules: c, st: E.seriesStandings(rs, dbState(), { champ: c, filter: groupFilter(groupKey, c), boats: champEntries(cid) }) };
 }
-function ctxName() { return ctxKind() === 'c' ? S.champs[ctxId()].name : S.events[ctxId()].name; }
+function ctxName() { return S.champs[ctxId()].name; }
 function standingsText(st, races, title) {
   let t = title + '\n' + '#  Barco'.padEnd(22) + 'Líq  Tot  ' + races.map((r, i) => 'R' + (i + 1)).join(' ') + '\n';
   st.table.forEach(r => { t += String(r.rank).padEnd(3) + r.name.padEnd(19) + ptsF(r.net).padStart(4) + ptsF(r.total).padStart(5) + '  ' + r.cells.map(c => (c.disc ? '(' : '') + (c.code ? c.code + ' ' : '') + ptsF(c.pts) + (c.disc ? ')' : '')).join(' ') + '\n'; });
@@ -566,7 +555,15 @@ async function onClick(e) {
     const c = Object.assign(id ? clone(S.champs[id]) : {}, { name: v('cName'), season: v('cSeason'), clubId: v('cClub') }, readRules());
     if (!c.name) { toast('O campeonato precisa de nome.'); return; }
     const cid = id || uniqueId('champs', slug(c.name + ' ' + c.season));
-    if (await save('champs', cid, c)) { S.ctx = 'c:' + cid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {} closeDlg(); pickCtx(); render(); }
+    const single = !id && $('#cSingle') && $('#cSingle').checked;
+    if (single && (!v('cFrom') || (v('cTo') && v('cTo') < v('cFrom')))) { toast('Verifique as datas da prova.'); return; }
+    if (!await save('champs', cid, c)) return;
+    S.ctx = 'c:' + cid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {}
+    if (single) {
+      const eid = uniqueId('events', slug(c.name + ' ' + v('cFrom').slice(0, 4)));
+      if (await save('events', eid, { name: c.name, champ: cid, clubId: c.clubId, dateFrom: v('cFrom'), dateTo: v('cTo') || v('cFrom'), venue: v('cVenue'), entries: [] })) { closeDlg(); pickCtx(); location.hash = 'prova-' + eid; return; }
+    }
+    closeDlg(); pickCtx(); location.hash = 'provas'; render();
   }
   else if (a === 'champDel') {
     if (champEvents(id).length) { toast('O campeonato tem provas: mova-as ou apague-as primeiro.'); return; }
@@ -575,11 +572,12 @@ async function onClick(e) {
   }
   else if (a === 'eventSave') {
     if (!v('eName') || !v('eFrom')) { toast('Preencha o nome e a data de início.'); return; }
-    const ev = Object.assign(id ? clone(S.events[id]) : { entries: [] }, { name: v('eName'), champ: v('eChamp') || null, dateFrom: v('eFrom'), dateTo: v('eTo') || v('eFrom'), clubId: v('eClub'), venue: v('eVenue') });
+    const ev = Object.assign(id ? clone(S.events[id]) : { entries: [] }, { name: v('eName'), champ: v('eChamp'), dateFrom: v('eFrom'), dateTo: v('eTo') || v('eFrom'), clubId: v('eClub'), venue: v('eVenue') });
     if (ev.dateTo < ev.dateFrom) { toast('A data de fim é anterior à de início.'); return; }
-    if (!ev.champ) Object.assign(ev, readRules());
+    if (!ev.champ || !S.champs[ev.champ]) { toast('Escolha o campeonato.'); return; }
+    ['discards', 'divLimits', 'groups', 'classGroups'].forEach(k => delete ev[k]);
     const eid = id || uniqueId('events', slug(ev.name + ' ' + ev.dateFrom.slice(0, 4)));
-    if (await save('events', eid, ev)) { S.ctx = ev.champ ? 'c:' + ev.champ : 'e:' + eid; try { localStorage.setItem('ctx', S.ctx); } catch (_) {} closeDlg(); pickCtx(); location.hash = 'prova-' + eid; }
+    if (await save('events', eid, ev)) { S.ctx = 'c:' + ev.champ; try { localStorage.setItem('ctx', S.ctx); } catch (_) {} closeDlg(); pickCtx(); location.hash = 'prova-' + eid; }
   }
   else if (a === 'eventDel') {
     if (eventRaces(id).length) { toast('A prova tem regatas: apague-as primeiro.'); return; }
