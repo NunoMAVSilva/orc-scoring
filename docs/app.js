@@ -251,11 +251,12 @@ function viewRace(id) {
   if (notEntered.length) problems.push('Não inscritos nesta prova: ' + notEntered.join(', '));
   const tabs = groupsOf(rules);
   if (!tabs.find(t => t.k === S.raceGroup)) S.raceGroup = 'GERAL';
-  const { rows } = E.raceResults(race, dbState(), groupFilter(S.raceGroup, rules));
+  const { rows, pending } = E.raceResults(race, dbState(), groupFilter(S.raceGroup, rules));
+  const pendingWhat = pending === 'distância' ? 'distância' : 'largada';
   const isToD = race.system.startsWith('ToD');
   const tr = rows.map(x => {
     const b = S.boats[x.boatId] || {};
-    if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a largada)</td></tr>`;
+    if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a ${pendingWhat})</td></tr>`;
     if (x.code) return `<tr><td class="pos">—</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
     return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
       <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
@@ -277,7 +278,7 @@ function viewRace(id) {
 /* ---------- editor de chegadas ---------- */
 function openFinishEditor(id, proposal) {
   const race = S.races[id];
-  S.edit = { id, start: race.start || '', rows: (proposal || race.finishes || []).map(f => Object.assign({}, f)) };
+  S.edit = { id, start: race.start || '', dist: race.distance ? String(race.distance).replace('.', ',') : '', rows: (proposal || race.finishes || []).map(f => Object.assign({}, f)) };
   drawFinishEditor();
 }
 function drawFinishEditor() {
@@ -291,14 +292,15 @@ function drawFinishEditor() {
      <button class="x" data-a="finDel" data-i="${i}" aria-label="Remover linha">×</button>${f.read ? `<div class="small muted" style="grid-column:1/-1">lido: “${esc(f.read)}”${f.boatId ? '' : ' · escolha o barco'}</div>` : ''}</div>`).join('');
   const inRace = new Set(ed.rows.map(r => r.boatId));
   const quick = boatsSorted.filter(([bid]) => !inRace.has(bid) && entered.has(bid)).map(([bid, b]) => `<button class="btn sm" data-a="finAdd" data-b="${esc(bid)}">${esc(b.name)}</button>`).join('');
-  dialog(`Chegadas · ${race.name}`, `<div class="grid-f">${field('finStart', 'Hora de largada', ed.start, 'placeholder="hh:mm:ss" inputmode="numeric"')}</div>${ed.startNote ? `<div class="small muted">${esc(ed.startNote)}</div>` : ''}
+  const isToD = String(race.system || '').startsWith('ToD');
+  dialog(`Chegadas · ${race.name}`, `<div class="grid-f">${field('finStart', 'Hora de largada', ed.start, 'placeholder="hh:mm:ss" inputmode="numeric"')}${isToD ? field('finDist', 'Distância do percurso (NM)', ed.dist, 'placeholder="ex.: 12,4" inputmode="decimal"') : ''}</div>${ed.startNote ? `<div class="small muted">${esc(ed.startNote)}</div>` : ''}
     <div class="small muted">Ordem de chegada. FIN = chegou (precisa de hora). Siglas DNF/DNS/RET… para barcos que estiveram na regata. Inscritos que não estão aqui ficam DNC.</div>
     <div class="list">${rows || '<div class="muted small">Sem linhas.</div>'}</div>
     <div class="row"><button class="btn sm" data-a="finAdd">+ Linha</button></div>
     <details><summary class="small">Adicionar inscrito (${quick ? 'faltam ' + (boatsSorted.filter(([bid]) => !inRace.has(bid) && entered.has(bid)).length) : 'todos na lista'})</summary><div class="row" style="margin-top:8px">${quick || '<span class="small muted">Para adicionar outro barco, inscreva-o primeiro na prova.</span>'}</div></details>
     <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="finSave">Gravar chegadas</button></div>`);
   $('#dlgB').oninput = $('#dlgB').onchange = e => {
-    const el = e.target; if (el.id === 'finStart') { S.edit.start = el.value.replace(/[.,h ]/g, ':'); return; } if (el.dataset.fi == null) return;
+    const el = e.target; if (el.id === 'finStart') { S.edit.start = el.value.replace(/[.,h ]/g, ':'); return; } if (el.id === 'finDist') { S.edit.dist = el.value; return; } if (el.dataset.fi == null) return;
     const f = S.edit.rows[+el.dataset.fi]; f[el.dataset.k] = el.value;
     if (el.dataset.k === 'finish') f.finish = el.value.replace(/[.,h ]/g, ':');
   };
@@ -446,7 +448,7 @@ function openRaceForm(id, eventId) {
   dialog(id ? 'Editar regata' : 'Nova regata', `<div class="grid-f">
     ${field('rName', 'Nome da regata', r.name, 'placeholder="ex.: Regata 1"')}${sel('rEvent', 'Prova', r.event, evOpts)}
     ${field('rDate', 'Data', r.date, 'type="date"')}${field('rStart', 'Hora da largada (opcional — lida da folha)', r.start || '', 'placeholder="hh:mm:ss"')}
-    ${sel('rSys', 'Sistema de pontuação', r.system, Object.entries(E.SYSTEMS))}${field('rDist', 'Distância do percurso (NM, para ToD)', r.distance || '', 'inputmode="decimal"')}
+    ${sel('rSys', 'Sistema de pontuação', r.system, Object.entries(E.SYSTEMS))}${field('rDist', 'Distância do percurso (NM, para ToD — opcional, lida da folha)', r.distance || '', 'inputmode="decimal"')}
     ${sel('rLimMode', 'Tempo limite (IdR)', r.timeLimit && !r.timeLimitDur ? 'abs' : 'dur', [['dur', 'Duração após a largada'], ['abs', 'Hora limite de chegada']])}${field('rLim', 'Tempo limite', r.timeLimitDur || r.timeLimit || '', 'placeholder="h:mm (ex.: 4:00) ou hh:mm"')}${sel('rStatus', 'Estado', r.status || 'provisoria', [['provisoria', 'Provisória'], ['final', 'Final']])}</div>
     <div class="row spread">${delBtn('raceDel', id, 'Apagar regata')}<button class="btn pri" data-a="raceSave" data-id="${esc(id || '')}">Gravar</button></div>`);
 }
@@ -612,7 +614,7 @@ async function readSheet(raceId) {
     const ids = ev.entries || [];
     const fleet = ids.filter(id => S.boats[id]).map(id => { const b = S.boats[id]; return `${id} | ${b.name} | ${(b.aka || []).join('/')} | ${b.sail || ''} | ${b.type || ''} | ${skipperName(b.skipperId)}`; }).join('\n');
     const prompt = `És secretário de regata. Lê a folha de chegadas manuscrita da fotografia (regata "${race.name}", largada ${race.start || 'desconhecida: lê-a da folha'}).
-Devolve APENAS JSON com esta forma: {"start":"hh:mm:ss ou null","finishes":[{"read":"nome como está escrito","boatId":"id da lista ou null","finish":"hh:mm:ss ou null","code":"FIN|DNF|DNS|RET|OCS|BFD|UFD|DSQ"}],"notes":"observações curtas em português"}
+Devolve APENAS JSON com esta forma: {"start":"hh:mm:ss ou null","distance":"distância do percurso em milhas náuticas se estiver escrita na folha, senão null","finishes":[{"read":"nome como está escrito","boatId":"id da lista ou null","finish":"hh:mm:ss ou null","code":"FIN|DNF|DNS|RET|OCS|BFD|UFD|DSQ"}],"notes":"observações curtas em português"}
 Regras: ordem = ordem de chegada. Os nomes podem estar escritos meia linha acima ou abaixo da hora: emparelha pela ordem. Usa a hora de chegada, não o tempo de regata. Barcos na zona de "desclassificados"/siglas recebem a sigla (code) e finish null. Ignora listas de verificação ao lado. Se a hora tiver só minutos e segundos, completa com a hora da linha anterior. A folha pode identificar o barco pelo nome, número de vela ou skipper.
 Barcos inscritos (id | nome | outros nomes | vela | tipo | skipper):
 ${fleet}`;
@@ -623,6 +625,11 @@ ${fleet}`;
     const rs0 = res && res.start && E.secs(res.start) != null ? String(res.start) : '';
     if (rs0 && rs0 !== race.start) { S.edit.start = rs0; S.edit.startNote = race.start ? `Largada lida na folha: ${rs0} (antes: ${race.start}). Confirme.` : `Largada lida na folha: ${rs0}. Confirme.`; drawFinishEditor(); }
     else if (!race.start && !rs0) { S.edit.startNote = 'A folha não tem a hora de largada legível: escreva-a acima.'; drawFinishEditor(); }
+    if (String(race.system || '').startsWith('ToD')) {
+      const d0 = res && res.distance != null && Number(String(res.distance).replace(',', '.')) > 0 ? Number(String(res.distance).replace(',', '.')) : null;
+      if (d0 && d0 !== Number(race.distance)) { S.edit.dist = String(d0).replace('.', ','); S.edit.startNote = (S.edit.startNote ? S.edit.startNote + ' ' : '') + `Distância lida na folha: ${S.edit.dist} NM${race.distance ? ' (antes: ' + race.distance + ')' : ''}. Confirme.`; drawFinishEditor(); }
+      else if (!d0 && !race.distance) { S.edit.startNote = (S.edit.startNote ? S.edit.startNote + ' ' : '') + 'A folha não indica a distância: escreva-a acima.'; drawFinishEditor(); }
+    }
     if (res && res.notes) $('#dlgB').insertAdjacentHTML('afterbegin', `<div class="info small">Notas da leitura: ${esc(res.notes)}${res.start ? ' · largada lida: ' + esc(res.start) : ''}. Confirme cada linha antes de gravar.</div>`);
   } catch (e) {
     dialog('Ler folha com o Claude', `<div class="warn">Não foi possível ler a folha (${esc(e.code || e.message || e)}). Introduza as chegadas à mão.</div>`);
@@ -716,7 +723,10 @@ async function onClick(e) {
     const st = (S.edit.start || '').trim();
     if (st && E.secs(st) == null) { toast('Hora de largada inválida (hh:mm:ss).'); return; }
     const r = clone(S.races[S.edit.id]); r.finishes = rows; r.start = st;
-    if (await save('races', S.edit.id, r)) { toast(st ? 'Chegadas gravadas.' : 'Chegadas gravadas · falta a hora de largada para calcular.'); closeDlg(); }
+    const isToD = String(r.system || '').startsWith('ToD'), dist = String(S.edit.dist || '').trim().replace(',', '.');
+    if (isToD) { if (dist && !(Number(dist) > 0)) { toast('Distância inválida (milhas náuticas).'); return; } r.distance = dist ? Number(dist) : null; }
+    const miss = [!st && 'a hora de largada', isToD && !r.distance && 'a distância'].filter(Boolean);
+    if (await save('races', S.edit.id, r)) { toast(miss.length ? 'Chegadas gravadas · falta ' + miss.join(' e ') + ' para calcular.' : 'Chegadas gravadas.'); closeDlg(); }
   }
   else if (a === 'enroll') {
     const evs = champEvents(ctxId());
@@ -794,7 +804,7 @@ async function onClick(e) {
     if (!v('rName') || !v('rDate') || !v('rEvent')) { toast('Preencha nome, prova e data.'); return; }
     if (v('rStart') && E.secs(v('rStart')) == null) { toast('Hora de largada inválida (hh:mm:ss).'); return; }
     if (v('rLim') && E.secs(v('rLim')) == null) { toast('Tempo limite inválido (h:mm).'); return; }
-    if (v('rSys').startsWith('ToD') && !v('rDist')) { toast('Para ToD indique a distância do percurso.'); return; }
+    if (v('rDist') && !(Number(v('rDist').replace(',', '.')) > 0)) { toast('Distância inválida (milhas náuticas).'); return; }
     const base = id ? clone(S.races[id]) : { finishes: [] };
     Object.assign(base, { name: v('rName'), event: v('rEvent'), date: v('rDate'), start: v('rStart').replace(/[.,h]/g, ':'), system: v('rSys'), distance: v('rDist') ? Number(v('rDist').replace(',', '.')) : null, status: v('rStatus') });
     const lim = v('rLim').replace(/[.,h]/g, ':');
