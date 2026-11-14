@@ -984,6 +984,8 @@ async function doImport() {
     toast(ids.length + ' barco(s) inscritos' + (nc ? ` · ⚠ ${nc} sem certificado — ver aviso na Frota.` : '.')); closeDlg(); S.fleetTab = 'champ'; location.hash = 'frota'; render();
   }
 }
+// Safari (Mac) deixa o calendário do campo de data aberto depois de escolher o dia: tirar o foco fecha-o.
+document.addEventListener('change', e => { if (e.target && e.target.type === 'date') setTimeout(() => e.target.blur(), 0); }, true);
 document.addEventListener('change', async e => {
   if (e.target.id === 'impFile' && e.target.files[0]) { const f = e.target.files[0], d = e.target.dataset; e.target.value = ''; const eid = d.e || await ensureEvent(d.c); return eid && importEntries(f, eid); }
   if (e.target.id !== 'photoIn' || !e.target.files[0]) return;
