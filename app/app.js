@@ -22,7 +22,7 @@ const byName = (a, b) => (a[1].name || '').localeCompare(b[1].name || '');
 const uniqueId = (col, base) => { let id = base, i = 2; while (S[col][id]) id = base + '-' + i++; return id; };
 const clone = o => JSON.parse(JSON.stringify(o));
 
-function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+function toast(msg) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 function dbState() { return { boats: S.boats, classes: S.classes }; }
 
 /* ---------- modelo ---------- */
@@ -305,7 +305,7 @@ function viewFleet() {
     const cl = E.ratingAt(b, d, 'ToT_CL', dbState()), wl = E.ratingAt(b, d, 'ToT_WL', dbState());
     const k = cl ? cl.cert.kind || 'orc' : null;
     return `<a class="item" href="#boat-${esc(id)}"><div class="grow"><div class="title">${esc(b.name)}</div><div class="meta">${esc(boatSub(b))}${b.skipperId ? ' · ' + esc(skipperName(b.skipperId)) : ''}${champMode ? ' · ' + evCount(id) + ' prova(s)' : ''}</div>
-      <div class="meta num">ToT costeiro ${fmt4(cl && cl.value)} · barl./sotav. ${fmt4(wl && wl.value)}</div></div>${k ? `<span class="chip k-${esc(k)}">${esc(k)}</span>` : '<span class="chip">sem rating</span>'}</a>`;
+      <div class="meta num">ToT costeiro ${fmt4(cl && cl.value)} · barl./sotav. ${fmt4(wl && wl.value)}</div></div>${k ? `<span class="chip k-${esc(k)}">${esc(k)}</span>` : '<span class="chip">sem rating</span>'}${!champMode && S.canEdit && cid ? enrollBtn(id, evCount(id)) : ''}</a>`;
   }).join('');
   const intro = champMode
     ? `<div class="small muted">${cid ? `Barcos inscritos em pelo menos uma prova de ${esc(S.champs[cid].name)}. As inscrições fazem-se em cada prova (Provas → prova → Gerir inscrições).` : 'Escolha um campeonato no topo.'}</div>`
@@ -521,8 +521,25 @@ function standingsHTML() {
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copiado.'); } catch (_) { dialog('Copiar', `<textarea rows="14" style="width:100%;font-family:monospace;font-size:12px">${esc(text)}</textarea>`); } }
 
 /* ---------- ações ---------- */
+function enrollBtn(id, n) {
+  return n ? `<button class="btn sm" data-a="enroll" data-id="${esc(id)}" title="Alterar provas">Inscrito (${n})</button>` : `<button class="btn sm pri" data-a="enroll" data-id="${esc(id)}">Inscrever</button>`;
+}
+function openEnroll(boatId) {
+  const cid = ctxId(), evs = champEvents(cid);
+  const raced = eid => eventRaces(eid).some(r => (r.finishes || []).some(f => f.boatId === boatId));
+  dialog('Inscrever · ' + S.boats[boatId].name, `<div class="small muted">Provas de ${esc(S.champs[cid].name)} em que o barco fica inscrito:</div>
+    <div class="list">${evs.map(([eid, e]) => `<label class="item" style="cursor:pointer"><input type="checkbox" class="enrChk" value="${esc(eid)}" ${(e.entries || []).includes(boatId) ? 'checked' : ''} ${raced(eid) ? 'disabled title="Tem resultados nesta prova"' : ''}><div class="grow"><div class="title">${esc(e.name)}</div><div class="meta">${evDates(e)} · ${(e.entries || []).length} inscritos${raced(eid) ? ' · com resultados' : ''}</div></div></label>`).join('')}</div>
+    <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="enrollSave" data-id="${esc(boatId)}">Gravar</button></div>`);
+}
+async function setEntry(eid, boatId, on) {
+  const ev = clone(S.events[eid]), has = (ev.entries || []).includes(boatId);
+  if (on === has) return true;
+  ev.entries = on ? [...(ev.entries || []), boatId].sort() : ev.entries.filter(b => b !== boatId);
+  return save('events', eid, ev);
+}
 async function onClick(e) {
   const t = e.target.closest('[data-a]'); if (!t) return;
+  if (t.closest('a[href]')) e.preventDefault();
   const a = t.dataset.a, id = t.dataset.id;
   const confirmOnce = (label) => { if (t.dataset.confirm === '1') return true; t.dataset.confirm = '1'; t.textContent = label || 'Confirmar: apagar de vez'; return false; };
   if (a === 'grp') { S.group = t.dataset.k; render(); }
@@ -555,6 +572,20 @@ async function onClick(e) {
     const bad = rows.find(r => !r.code && E.secs(r.finish) == null); if (bad) { toast('Falta a hora de ' + S.boats[bad.boatId].name + '.'); return; }
     const r = clone(S.races[S.edit.id]); r.finishes = rows;
     if (await save('races', S.edit.id, r)) { toast('Chegadas gravadas.'); closeDlg(); }
+  }
+  else if (a === 'enroll') {
+    const evs = champEvents(ctxId());
+    if (!evs.length) { toast('Crie primeiro uma prova neste campeonato (separador Provas).'); return; }
+    if (evs.length === 1 && !(evs[0][1].entries || []).includes(id)) {
+      if (await setEntry(evs[0][0], id, true)) { toast(S.boats[id].name + ' inscrito em ' + evs[0][1].name + '.'); render(); }
+      return;
+    }
+    openEnroll(id);
+  }
+  else if (a === 'enrollSave') {
+    let ok = true;
+    for (const el of document.querySelectorAll('.enrChk:not(:disabled)')) ok = (await setEntry(el.value, id, el.checked)) && ok;
+    if (ok) { toast('Inscrições gravadas.'); closeDlg(); }
   }
   else if (a === 'entCopy') {
     const src = S.events[v('entCopy')]; if (!src) return;
