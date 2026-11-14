@@ -5,6 +5,8 @@ const COLS = ['champs', 'events', 'races', 'boats', 'classes', 'clubs', 'skipper
 const S = { loaded: {}, canEdit: false, ctx: null, group: 'GERAL', raceGroup: 'GERAL', evGroup: 'GERAL', fleetTab: 'boats', edit: null, catalog: null };
 COLS.forEach(c => { S[c] = {}; });
 let DB = null, ASSETS = null, SAMPLE = null, DOWN = null;
+// STATIC: site público (GitHub Pages), fora do Claude — lê data/db.json, só leitura.
+const STATIC = !(window.claude && typeof window.claude.use === 'function');
 const CODES = ['FIN', 'DNF', 'DNS', 'RET', 'OCS', 'BFD', 'UFD', 'DSQ', 'DNE'];
 const DEFAULT_RULES = { discards: [{ upTo: 3, n: 0 }, { upTo: 8, n: 1 }, { upTo: 999, n: 2 }], divLimits: { A: 9.9, B: 8.8 }, groups: ['A', 'B', 'C', 'SB'], classGroups: [] };
 const $ = s => document.querySelector(s);
@@ -68,6 +70,7 @@ async function init() {
   document.addEventListener('click', onClick);
   render();
   const timer = setTimeout(() => { if (!S.ready) $('#view').innerHTML = '<div class="warn">Não foi possível ligar à base de dados ainda. Verifique a ligação; os dados aparecem assim que houver resposta.</div>'; }, 10000);
+  if (STATIC) return loadStatic(timer);
   try { DB = await window.claude.use('db'); } catch (_) { DB = null; }
   if (!DB) { clearTimeout(timer); $('#view').innerHTML = '<div class="warn">Esta vista não tem acesso à base de dados. Abra a app em claude.ai com sessão iniciada.</div>'; return; }
   const user = await window.claude.use('user').catch(() => null);
@@ -82,6 +85,19 @@ async function init() {
   window.claude.use('sample').then(s => { SAMPLE = s; }).catch(() => {});
   window.claude.use('downloads').then(d => { DOWN = d; }).catch(() => {});
 }
+async function loadStatic(timer) {
+  try {
+    const data = await fetch('data/db.json', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    COLS.forEach(col => { S[col] = data[col] || {}; S.loaded[col] = true; });
+    S.exportedAt = data.exportedAt || null; S.ready = true; clearTimeout(timer); pickCtx(); render();
+  } catch (e) { clearTimeout(timer); $('#view').innerHTML = `<div class="warn">Não foi possível carregar os resultados (${esc(e.message)}).</div>`; }
+}
+function downloadFile(filename, data) {
+  const url = URL.createObjectURL(new Blob([data], { type: 'text/html' }));
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const updatedNote = () => STATIC && S.exportedAt ? ` · Atualizado a ${dPT(S.exportedAt.slice(0, 10))} às ${new Date(S.exportedAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Lisbon' })}.` : '';
 function pickCtx() {
   const champs = Object.entries(S.champs).sort((a, b) => (b[1].season || '').localeCompare(a[1].season || ''));
   const loose = Object.entries(S.events).filter(([, e]) => !e.champ || !S.champs[e.champ]).sort((a, b) => (b[1].dateFrom || '').localeCompare(a[1].dateFrom || ''));
@@ -134,7 +150,7 @@ function viewStandings() {
   }).join('') || '<div class="empty">Sem provas.</div>';
   else {
     const st = E.seriesStandings(races, dbState(), { champ: c, filter: groupFilter(S.group, c), boats: champEntries(cid) });
-    body = standingsTable(st, races, c) + `<p class="small muted">DNC = ${st.dnc} pontos (inscritos do grupo no campeonato + 1) · ${st.nDiscards} descarte(s) com ${races.length} regatas · desempates RRS A8. Pontos riscados = descartes.</p>`;
+    body = standingsTable(st, races, c) + `<p class="small muted">DNC = ${st.dnc} pontos (inscritos do grupo no campeonato + 1) · ${st.nDiscards} descarte(s) com ${races.length} regatas · desempates RRS A8. Pontos riscados = descartes.${updatedNote()}</p>`;
   }
   const fin = races.filter(r => r.status === 'final').length;
   return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${champEvents(cid).length} provas · ${races.length} regatas · ${fin} finais · ${esc(c.season || '')}</div></div>
@@ -156,7 +172,7 @@ function eventStandingsPage(eid) {
   return `<section class="row spread"><div><h1>${esc(e.name)}</h1><div class="small muted">${evDates(e)} · ${rs.length} regata(s) · ${(e.entries || []).length} inscritos</div></div>
     <div class="row"><a class="btn sm" href="#prova-${esc(eid)}" style="text-decoration:none;color:inherit">Ver prova</a><button class="btn sm" data-a="export">Exportar</button></div></section>
     <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
-    ${standingsTable(st, rs, rules)}<p class="small muted">DNC = ${st.dnc} pontos · ${st.nDiscards} descarte(s) · desempates RRS A8.</p>`;
+    ${standingsTable(st, rs, rules)}<p class="small muted">DNC = ${st.dnc} pontos · ${st.nDiscards} descarte(s) · desempates RRS A8.${updatedNote()}</p>`;
 }
 function standingsTable(st, races, rules) {
   if (!st.table.length) return '<div class="empty">Sem resultados ainda.</div>';
@@ -230,7 +246,7 @@ function viewRace(id) {
     return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
       <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
   }).join('');
-  const photos = (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
+  const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
   return `<section class="row spread"><div><div class="small muted"><a href="#prova-${esc(race.event)}">${esc(ev.name || 'Prova')}</a> · R${idx}</div><h1>${esc(race.name)}</h1></div>
       <span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span></section>
     <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${esc((race.start || '').slice(0, 5))}</b><span>largada</span></div>
@@ -663,10 +679,11 @@ async function onClick(e) {
   }
   else if (a === 'export') {
     const rules = ctxRules(), g = groupsOf(rules).find(x => x.k === S.group) || { t: 'Geral' };
-    dialog('Exportar classificação', `<div class="small muted">Para enviar aos velejadores: partilhe esta página (só leitura para quem não é editor), copie o texto ou descarregue um ficheiro HTML para imprimir ou publicar.</div>
-      <div class="row"><button class="btn" data-a="expTxt">Copiar texto (${esc(g.t)})</button>${DOWN ? '<button class="btn pri" data-a="expHtml">Descarregar HTML completo</button>' : ''}</div>`);
+    dialog('Exportar classificação', `<div class="small muted">Para enviar aos velejadores: ${STATIC ? 'partilhe o endereço deste site' : 'publique no site público'}, copie o texto ou descarregue um ficheiro HTML para imprimir ou publicar.</div>
+      <div class="row"><button class="btn" data-a="expTxt">Copiar texto (${esc(g.t)})</button>${DOWN || STATIC ? '<button class="btn pri" data-a="expHtml">Descarregar HTML completo</button>' : ''}</div>`);
   }
   else if (a === 'expTxt') { const k = S.group === 'PROVAS' ? 'GERAL' : S.group; const { st, rs, rules } = ctxSeries(k); copy(standingsText(st, rs, ctxName() + ' — ' + (groupsOf(rules).find(g => g.k === k) || { t: 'Geral' }).t)); }
+  else if (a === 'expHtml' && STATIC) downloadFile(slug(ctxName()) + '.html', standingsHTML());
   else if (a === 'expHtml') { try { await DOWN.save({ filename: slug(ctxName()) + '.html', data: standingsHTML() }); } catch (_) { toast('Descarga cancelada.'); } }
 }
 document.addEventListener('input', e => { if (e.target.id === 'fleetQ') { S.fleetQ = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#fleetQ'); q.focus(); q.setSelectionRange(pos, pos); } });

@@ -6,6 +6,8 @@
     ToT_WL: 'ToT Barlavento / Sotavento',
     ToD_CL: 'ToD Costeiro / Long Distance',
     ToD_WL: 'ToD Barlavento / Sotavento',
+    ToT_GPH: 'ToT GPH (600 ÷ GPH)',
+    ToD_GPH: 'ToD GPH',
   };
 
   function secs(t) {
@@ -34,6 +36,8 @@
     if (cert[field] != null && cert[field] !== '') return Number(cert[field]);
     if (field === 'ToD_CL' && cert.ToT_CL) return Math.round(6000 / cert.ToT_CL) / 10;
     if (field === 'ToD_WL' && cert.ToT_WL) return Math.round(6000 / cert.ToT_WL) / 10;
+    if (field === 'ToD_GPH' && cert.GPH) return Number(cert.GPH);
+    if (field === 'ToT_GPH' && cert.GPH) return Math.round(600 / cert.GPH * 1e4) / 1e4;
     return null;
   }
   function certsOf(boat, db) {
@@ -116,7 +120,7 @@
 
   function raceResults(race, db, filterFn) {
     const { rows, problems } = scoreRace(race, db);
-    const sel = rows.filter(r => !filterFn || filterFn(db.boats[r.boatId])).map(r => Object.assign({}, r));
+    const sel = rows.filter(r => !filterFn || filterFn(db.boats[r.boatId], r.boatId)).map(r => Object.assign({}, r));
     return { rows: placeRows(sel), problems };
   }
 
@@ -129,9 +133,14 @@
   // classificação de série (campeonato, divisão, classe ou prova)
   function seriesStandings(races, db, opts) {
     opts = opts || {};
-    const filterFn = opts.filter;
+    // opts.boats: lista de inscritos — só estes entram, e quem não tem resultado numa regata fica DNC
+    const entrants = opts.boats ? new Set(opts.boats) : null;
+    const filterFn = entrants
+      ? ((b, id) => entrants.has(id) && (!opts.filter || opts.filter(b, id)))
+      : opts.filter;
     const perRace = [];
     const order = [];
+    if (entrants) for (const id of opts.boats) if (db.boats[id] && (!opts.filter || opts.filter(db.boats[id]))) order.push(id);
     for (const race of races) {
       const { rows } = raceResults(race, db, filterFn);
       const map = {};
