@@ -131,5 +131,9 @@ dialog .db { padding: 14px; display: flex; flex-direction: column; gap: 10px; ma
 .clogo { width: 18px; height: 18px; border-radius: 4px; vertical-align: -4px; margin-right: 6px; object-fit: contain; display: inline-flex; align-items: center; justify-content: center; font: 700 8px/1 var(--font-body); color: #fff; letter-spacing: -.02em; flex: none; }
 img.clogo { background: #fff; }
 .clogo.big { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; margin-right: 0; }
-/* telemóvel: o logótipo já diz ORC Scoring; o espaço vai para o nome do evento */
-@media (max-width: 480px) { header.top .t { display: none; } header.top .ctx { max-width: calc(100% - 50px); } }
+/* telemóvel: título mais pequeno e o nome do evento pode ocupar 2 linhas (alinhado à direita) */
+@media (max-width: 480px) {
+  header.top .t { font-size: 1.05rem; white-space: nowrap; }
+  header.top .ctx { max-width: 64%; }
+  #ctxLabel { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
+}
