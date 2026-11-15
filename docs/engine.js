@@ -105,8 +105,9 @@
         row.code = 'DNF'; row.note = 'chegou fora do tempo limite'; rows.push(row); continue;
       }
       if (el <= 0 || el > 36 * 3600) problems.push(`${boat.name}: tempo decorrido estranho (${hms2(el)})`);
-      const r = ratingAt(boat, race.date, sys, db);
-      if (!r) { row.code = 'DNF'; row.note = 'SEM RATING ' + sys; problems.push(`${boat.name}: sem rating ${sys} em ${race.date}`); rows.push(row); continue; }
+      // certificado em vigor no 1.º dia da prova (race.ratingDate), igual para todas as regatas da prova
+      const r = ratingAt(boat, race.ratingDate || race.date, sys, db);
+      if (!r) { row.code = 'DNF'; row.note = 'SEM RATING ' + sys; problems.push(`${boat.name}: sem rating ${sys} em ${race.ratingDate || race.date}`); rows.push(row); continue; }
       row.rating = r.value; row.certSrc = r.cert.src || '';
       if (sys.startsWith('ToT')) row.corrected = Math.round(el * r.value);
       else row.corrected = Math.round(el - r.value * Number(race.distance || 0));

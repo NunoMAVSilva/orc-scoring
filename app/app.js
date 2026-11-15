@@ -38,7 +38,7 @@ function dbState() { return { boats: S.boats, classes: S.classes }; }
 /* ---------- modelo ---------- */
 const sortRaces = list => list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 // regata com os inscritos da prova (para os pontos de penalização = inscritos + 1, RRS A5.2)
-function withEnt(id, r) { return Object.assign({ id }, r, { entrants: ((S.events[r.event] || {}).entries || []).slice() }); }
+function withEnt(id, r) { const ev = S.events[r.event] || {}; return Object.assign({ id }, r, { entrants: (ev.entries || []).slice(), ratingDate: ev.dateFrom && ev.dateFrom < r.date ? ev.dateFrom : r.date }); }
 function eventRaces(eid) { return sortRaces(Object.entries(S.races).filter(([, r]) => r.event === eid).map(([id, r]) => withEnt(id, r))); }
 function champEvents(cid) { return Object.entries(S.events).filter(([, e]) => e.champ === cid).sort((a, b) => (a[1].dateFrom || '').localeCompare(b[1].dateFrom || '')); }
 function champRaces(cid) { return sortRaces(champEvents(cid).flatMap(([eid]) => eventRaces(eid))); }
@@ -327,7 +327,7 @@ function viewRace(id) {
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table></div>
-    <p class="small muted">Siglas (DNF, DNS, RET…) = inscritos na prova + 1 (RRS A5.2). Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.date)}; toque no valor para ver a origem.</p>
+    <p class="small muted">Siglas (DNF, DNS, RET…) = inscritos na prova + 1 (RRS A5.2). Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.ratingDate || race.date)}${race.ratingDate && race.ratingDate !== race.date ? ' (1.º dia da prova)' : ''}; toque no valor para ver a origem.</p>
     <div class="row">${S.canEdit ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
     ${S.canEdit || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${S.canEdit ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
       ${S.canEdit && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
@@ -595,7 +595,7 @@ function openCertForm(boatId, tab) {
   let body = '';
   if (tab === 'orc') body = `<div class="info small">Certificados ORC ativos de todos os países (base de dados ORC, atualizada a ${esc(S.catalog ? S.catalog.built : '…')}). Para anos anteriores use o Sailor Services e introduza à mão.</div>
      <input id="catQ" placeholder="Nome, número de vela ou modelo (ex.: Hanse 400)" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
-     ${field('cFrom', 'Válido a partir de (vazio = 1 de janeiro do ano do certificado)', '', 'type="date"')}<div id="catRes" class="list"></div>`;
+     ${field('cFrom', (S.boats[boatId].certs || []).length ? 'Válido a partir de (vazio = dia seguinte à emissão)' : 'Válido a partir de (vazio = 1 de janeiro do ano do certificado)', '', 'type="date"')}<div id="catRes" class="list"></div>`;
   else if (tab === 'manual') body = `<div class="grid-f">${field('mFrom', 'Válido a partir de', today(), 'type="date"')}${sel('mKind', 'Tipo', 'manual', [['orc', 'Certificado ORC próprio'], ['teste', 'Certificado de teste'], ['copiado', 'Copiado de barco semelhante'], ['manual', 'Atribuído manualmente']])}
      ${field('mCL', 'ToT costeiro', '', 'inputmode="decimal"')}${field('mWL', 'ToT barl./sotav.', '', 'inputmode="decimal"')}${field('mTodCL', 'ToD costeiro (s/NM)', '', 'inputmode="decimal"')}${field('mTodWL', 'ToD barl./sotav. (s/NM)', '', 'inputmode="decimal"')}
      ${field('mGPH', 'GPH (s/NM)', '', 'inputmode="decimal"')}${field('mCDL', 'CDL', '', 'inputmode="decimal"')}${field('mSrc', 'Origem (barco, país, ano)', '')}</div>
@@ -982,7 +982,9 @@ async function onClick(e) {
   }
   else if (a === 'catUse') {
     const r = S.catalog.rows.find(x => x[10] === t.dataset.ref); if (!r) return;
-    addCert(t.dataset.b, catCert(r, t.dataset.k, v('cFrom')));
+    // barco que já tem certificado: o novo vale a partir do dia seguinte à emissão (não altera provas já corridas)
+    const hasCert = (S.boats[t.dataset.b].certs || []).length, next = d => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+    addCert(t.dataset.b, catCert(r, t.dataset.k, v('cFrom') || (hasCert ? next(String(r[5])) : '')));
   }
   else if (a === 'certManual') {
     const n = x => x ? Number(x.replace(',', '.')) : null;
