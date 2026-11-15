@@ -236,7 +236,7 @@ function viewStandings() {
   if (S.group === 'PROVAS') body = champEvents(cid).map(([eid, e]) => {
     const rs = eventRaces(eid);
     const rsS = rs.filter(E.isScored), st = E.seriesStandings(rsS, dbState(), { discards: 0, boats: e.entries || [] });
-    return `<div class="card"><div class="row spread"><h2><a href="#prova-${esc(eid)}" style="color:inherit">${esc(e.name)}</a></h2><span class="small muted">${evDates(e)}</span></div><div class="small muted">${rs.length} regata(s) · ${(e.entries || []).length} inscritos · soma sem descartes</div>${standingsTable(st, rsS, c)}</div>`;
+    return `<div class="card"><div class="row spread"><h2><a href="#prova-${esc(eid)}" style="color:inherit">${esc(e.name)}</a></h2><span class="row small muted">${evDates(e)}<button class="btn sm" data-a="export" data-k="event" data-id="${esc(eid)}">Exportar</button></span></div><div class="small muted">${rs.length} regata(s) · ${(e.entries || []).length} inscritos · soma sem descartes</div>${standingsTable(st, rsS, c)}</div>`;
   }).join('') || '<div class="empty">Sem provas.</div>';
   else {
     const racesS = races.filter(E.isScored), st = E.seriesStandings(racesS, dbState(), { champ: c, filter: groupFilter(S.group, c), boats: champEntries(cid) });
