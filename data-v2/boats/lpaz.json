@@ -1,6 +1,17 @@
 {
   "aka": [],
-  "certs": [],
+  "certs": [
+    {
+      "CDL": 7.738,
+      "GPH": 734,
+      "ToT_CL": 0.8479,
+      "ToT_WL": 0.7325,
+      "from": "2025-11-29",
+      "kind": "copiado",
+      "ref": "03420004QQP",
+      "src": "copiado de TEMPUS FUGIT GRE-2235 GRE 2026 Club (SUN ODYSSEY 35)"
+    }
+  ],
   "clubId": "gcnfaro",
   "div": "C",
   "name": "LPAZ",
