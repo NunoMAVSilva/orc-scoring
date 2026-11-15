@@ -6,6 +6,7 @@ const S = { loaded: {}, canEdit: false, ctx: null, group: 'GERAL', raceGroup: 'G
 COLS.forEach(c => { S[c] = {}; });
 let DB = null, ASSETS = null, SAMPLE = null, DOWN = null;
 // STATIC: site público (GitHub Pages), fora do Claude — lê data/db.json, só leitura.
+const SITE_URL = 'https://nunomavsilva.github.io/orc-scoring/'; // endereço do site público (mudar aqui se passar a domínio próprio)
 const STATIC = !(window.claude && typeof window.claude.use === 'function');
 const CODES = ['FIN', 'DNF', 'DNS', 'RET', 'OCS', 'BFD', 'UFD', 'DSQ', 'DNE'];
 const DEFAULT_RULES = { discards: [{ upTo: 3, n: 0 }, { upTo: 8, n: 1 }, { upTo: 999, n: 2 }], divLimits: { A: 9.9, B: 8.8 }, groups: ['A', 'B', 'C', 'SB'], classGroups: [] };
@@ -198,6 +199,9 @@ function pickCtx() {
   const champs = Object.entries(S.champs).sort((a, b) => (b[1].dateFrom || b[1].season || '').localeCompare(a[1].dateFrom || a[1].season || ''));
   const valid = v => v && v[0] === 'c' && S.champs[v.slice(2)];
   let saved = null; try { saved = localStorage.getItem('ctx'); } catch (_) {}
+  // link partilhado com ?c=<campeonato> abre esse campeonato
+  let qp = null; try { qp = new URLSearchParams(location.search).get('c'); } catch (_) {}
+  if (!S.ctxFromUrl && qp && S.champs[qp]) { S.ctx = 'c:' + qp; S.ctxFromUrl = true; }
   if (!valid(S.ctx)) S.ctx = valid(saved) ? saved : champs[0] ? 'c:' + champs[0][0] : null;
   const opt = (v, t) => `<option value="${esc(v)}" ${v === S.ctx ? 'selected' : ''}>${esc(t)}</option>`;
   $('#ctxSel').innerHTML = champs.map(([id, c]) => opt('c:' + id, c.name)).join('')
@@ -258,7 +262,7 @@ function viewStandings() {
   }
   const fin = races.filter(r => r.status === 'final').length;
   return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${c.dateFrom ? evDates(c) + ' · ' : ''}${champEvents(cid).length} provas · ${races.length} regatas · ${fin} finais${c.season ? ' · ' + esc(c.season) : ''}</div></div>
-    <div class="row">${S.canEdit ? `<button class="btn sm" data-a="editChamp" data-id="${esc(cid)}">Definições</button>` : ''}<button class="btn sm" data-a="export">Exportar</button></div></section>
+    <div class="row">${S.canEdit ? `<button class="btn sm" data-a="editChamp" data-id="${esc(cid)}">Definições</button>` : ''}<button class="btn sm" data-a="export">Exportar</button>${STATIC ? '' : `<button class="btn sm" data-a="siteLink" data-id="${esc(cid)}">🌐 Site público</button>`}</div></section>
     <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>${closedNote(c)}
     ${body}`;
 }
@@ -1159,6 +1163,14 @@ async function onClick(e) {
     if (rc.GPH) c.GPH = Math.round(rc.GPH / f * 10) / 10;
     addCert(t.dataset.b, c);
   }
+  else if (a === 'siteLink') {
+    const url = SITE_URL + '?c=' + encodeURIComponent(id) + '#classificacao', c = S.champs[id] || {};
+    dialog('Site público', `<div class="small muted">Link do site público, já aberto em <b>${esc(c.name || '')}</b>. Mostra o que foi publicado (diga "publica" depois de alterar resultados).</div>
+      <input id="siteUrl" readonly value="${esc(url)}" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:100%;font-size:.85rem">
+      <div class="row"><a class="btn pri" href="${esc(url)}" target="_blank" rel="noopener" style="text-decoration:none">Abrir site</a><button class="btn" data-a="siteCopy">Copiar link</button>${navigator.share ? '<button class="btn" data-a="siteShare">Partilhar…</button>' : ''}</div>`);
+  }
+  else if (a === 'siteCopy') copy(v('siteUrl'));
+  else if (a === 'siteShare') { try { await navigator.share({ title: 'Resultados · ' + ((S.champs[ctxId()] || {}).name || 'ORC Scoring'), url: v('siteUrl') }); } catch (_) {} }
   else if (a === 'export') openExport(t.dataset.k || 'champ', id);
   else if (a === 'expAll') document.querySelectorAll('.expG').forEach(x => { x.checked = t.dataset.v === '1'; });
   else if (a === 'expTxt' || a === 'expHtml') {
