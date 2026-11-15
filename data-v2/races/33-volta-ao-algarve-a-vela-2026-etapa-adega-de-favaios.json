@@ -105,7 +105,7 @@
     "db57c504e44fa4daf9ea3335aa351f04"
   ],
   "start": "12:00:00",
-  "status": "provisoria",
+  "status": "final",
   "system": "ToD_CL",
   "timeLimit": "",
   "timeLimitDur": "6:30"
