@@ -106,7 +106,9 @@
       }
       if (el <= 0 || el > 36 * 3600) problems.push(`${boat.name}: tempo decorrido estranho (${hms2(el)})`);
       // certificado em vigor no 1.º dia da prova (race.ratingDate), igual para todas as regatas da prova
-      const r = ratingAt(boat, race.ratingDate || race.date, sys, db);
+      // prova fechada: usa os certificados congelados no fecho (race.frozen[boatId])
+      const fz = race.frozen && race.frozen[f.boatId];
+      const r = ratingAt(fz ? { certs: fz } : boat, race.ratingDate || race.date, sys, db);
       if (!r) { row.code = 'DNF'; row.note = 'SEM RATING ' + sys; problems.push(`${boat.name}: sem rating ${sys} em ${race.ratingDate || race.date}`); rows.push(row); continue; }
       row.rating = r.value; row.certSrc = r.cert.src || '';
       if (sys.startsWith('ToT')) row.corrected = Math.round(el * r.value);
