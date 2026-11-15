@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 10.423,
@@ -22,7 +23,8 @@
   "clubId": "gcnfaro",
   "div": "A",
   "name": "SAMBUCA",
+  "note": "",
   "sail": "",
   "skipperId": "jose-guedes",
-  "type": "BENETEAU OCEANIS 461"
+  "type": "Beneteau Oceanis 461"
 }

@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 5.689,
@@ -13,7 +14,8 @@
   "clubId": "gnolhao",
   "div": "C",
   "name": "JENNY III",
+  "note": "",
   "sail": "SWE 11151",
   "skipperId": "arne-hakansson",
-  "type": "BENETEAU FIRST 210"
+  "type": "Beneteau First 210"
 }

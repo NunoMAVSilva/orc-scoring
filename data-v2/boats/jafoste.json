@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 8.409,
@@ -22,7 +23,8 @@
   "clubId": "gcnfaro",
   "div": "C",
   "name": "JÁ FOSTE",
+  "note": "",
   "sail": "POR 8169",
   "skipperId": "joao-botinas",
-  "type": "FIRST 31.7"
+  "type": "First 31.7"
 }

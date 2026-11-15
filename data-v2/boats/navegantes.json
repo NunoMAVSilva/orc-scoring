@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "ToD_CL": 733,
@@ -11,7 +12,8 @@
   "clubId": "gnolhao",
   "div": "C",
   "name": "NAVEGANTES",
+  "note": "",
   "sail": "",
   "skipperId": "goncalo-mestre",
-  "type": "SAILMAR 670"
+  "type": "Sailmar 670"
 }

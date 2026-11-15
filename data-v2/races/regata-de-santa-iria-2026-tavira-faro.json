@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-11",
+  "distance": 14.85,
+  "event": "regata-de-santa-iria-2026",
+  "finishes": [
+    {
+      "boatId": "mar-meu",
+      "finish": "16:10:39"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "16:11:26"
+    },
+    {
+      "boatId": "magano",
+      "finish": "16:12:06"
+    },
+    {
+      "boatId": "tita",
+      "finish": "16:24:06"
+    },
+    {
+      "boatId": "choque",
+      "finish": "16:25:26"
+    },
+    {
+      "boatId": "paquito",
+      "finish": "16:28:26"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "16:30:55"
+    },
+    {
+      "boatId": "troton",
+      "finish": "16:41:21"
+    },
+    {
+      "boatId": "cidade-de-faro",
+      "finish": "18:19:39"
+    },
+    {
+      "boatId": "stella-maris",
+      "code": "DNF"
+    },
+    {
+      "boatId": "brizo",
+      "code": "DNF"
+    }
+  ],
+  "name": "Tavira - Faro",
+  "photos": [
+    "141dc166724c2d6e27d0d272d18cee94"
+  ],
+  "start": "12:45:00",
+  "status": "provisoria",
+  "system": "ToD_CL",
+  "timeLimit": "",
+  "timeLimitDur": "06:30:00"
+}

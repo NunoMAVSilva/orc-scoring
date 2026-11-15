@@ -1,0 +1,29 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "ToD_CL": 584.6,
+      "ToT_CL": 1.0263,
+      "from": "2026-01-01",
+      "kind": "orc",
+      "src": "MAR MEU POR 2018 2026 Club (POGO 30) · certificado anterior, usado pela organização na Santa Iria 2026"
+    },
+    {
+      "CDL": 9.093,
+      "GPH": 590.9,
+      "ToT_CL": 1.0443,
+      "ToT_WL": 0.9197,
+      "from": "2026-10-11",
+      "kind": "orc",
+      "ref": "035300051IN",
+      "src": "MAR MEU POR 2018 POR 2026 Club (POGO 30) · emitido a 10/10/2026"
+    }
+  ],
+  "clubId": "cvvcastelo",
+  "div": "",
+  "name": "MAR MEU",
+  "note": "",
+  "sail": "POR 2018",
+  "skipperId": "paulo-gil-morais",
+  "type": "POGO 30"
+}

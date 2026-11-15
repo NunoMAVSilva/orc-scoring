@@ -1,0 +1,22 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 10.071,
+      "GPH": 603.7,
+      "ToT_CL": 1.0236,
+      "ToT_WL": 0.8968,
+      "from": "2026-01-01",
+      "kind": "copiado",
+      "ref": "03530004WTQ",
+      "src": "copiado de AQUAHOLIC POR 8502 POR 2026 Club (HANSE 400)"
+    }
+  ],
+  "clubId": "cntavira",
+  "div": "",
+  "name": "BRIZO",
+  "note": "",
+  "sail": "",
+  "skipperId": "joao-garcia",
+  "type": "HANSE 400"
+}

@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 9.591,
@@ -13,7 +14,8 @@
   "clubId": "gnolhao",
   "div": "B",
   "name": "STª TERESINHA",
+  "note": "",
   "sail": "POR 1524",
   "skipperId": "joao-ferro",
-  "type": "OCEANIS 411"
+  "type": "Beneteau Oceanis 411"
 }

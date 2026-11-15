@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "ToD_CL": 592.9,
@@ -9,12 +10,12 @@
       "src": "derivado Cidade 2025"
     },
     {
-      "ToD_CL": 592.9,
+      "ToD_CL": 589.7,
       "ToT_CL": 1.012,
       "ToT_WL": 0.8936,
       "from": "2026-04-29",
       "kind": "derivado",
-      "src": "derivado Cidade 2026"
+      "src": "derivado Cidade 2026 · ToD 589,7 (valor usado pela organização na Volta e Santa Iria 2026)"
     }
   ],
   "clubId": "",
@@ -23,5 +24,5 @@
   "note": "Derivado: fator 1.0120/ToT costal Cidade de Faro aplicado a todos os valores",
   "sail": "",
   "skipperId": "francisco-badalo",
-  "type": "PROTÓTIPO FB35"
+  "type": "Protótipo FB35"
 }

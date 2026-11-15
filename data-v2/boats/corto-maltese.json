@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "ToD_CL": 724.8,
@@ -12,7 +13,8 @@
   "clubId": "gcnfaro",
   "div": "C",
   "name": "CORTO MALTESE",
+  "note": "",
   "sail": "",
   "skipperId": "carlos-ferrinho",
-  "type": "FEELING 286"
+  "type": "Feeling 286"
 }

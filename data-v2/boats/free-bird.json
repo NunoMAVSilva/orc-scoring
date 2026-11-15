@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "ToD_CL": 710.6,
@@ -12,7 +13,8 @@
   "clubId": "cimav",
   "div": "C",
   "name": "FREE BIRD",
+  "note": "",
   "sail": "",
   "skipperId": "francisco-melo",
-  "type": "DEHLER 25"
+  "type": "Dehler 25"
 }

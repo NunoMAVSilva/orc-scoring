@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 7.059,
@@ -16,5 +17,5 @@
   "note": "Helium 7.65 é sportboat - mantido em C por decisão (rever)",
   "sail": "",
   "skipperId": "pedro-rodrigues",
-  "type": "HELIUM 7.65"
+  "type": "Helium 7.65"
 }

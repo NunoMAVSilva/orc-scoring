@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 9.856,
@@ -22,7 +23,8 @@
   "clubId": "cntavira",
   "div": "B",
   "name": "MAGANO",
+  "note": "",
   "sail": "POL-77",
   "skipperId": "joao-diniz",
-  "type": "MARINA 36 SPORT"
+  "type": "Marina 36 Sport"
 }

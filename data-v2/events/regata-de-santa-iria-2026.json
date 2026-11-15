@@ -1,0 +1,26 @@
+{
+  "champ": "regata-de-santa-iria-2026",
+  "clubId": "gcnfaro",
+  "dateFrom": "2026-10-10",
+  "dateTo": "2026-10-11",
+  "entries": [
+    "brizo",
+    "choque",
+    "cidade-de-faro",
+    "impulsive",
+    "magano",
+    "mar-meu",
+    "paquito",
+    "stella-maris",
+    "tita",
+    "too-much",
+    "troton"
+  ],
+  "name": "Regata de Santa Iria 2026",
+  "skippers": {
+    "choque": "nuno-santos",
+    "impulsive": "humberto-pereira",
+    "paquito": "ana-m-rodrigues"
+  },
+  "venue": ""
+}

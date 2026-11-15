@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "CDL": 6.149,
@@ -13,7 +14,8 @@
   "clubId": "cvlagos",
   "div": "C",
   "name": "SEITA TOO",
+  "note": "",
   "sail": "POR 4163",
   "skipperId": "antonio-viegas",
-  "type": "SAFFIER 26"
+  "type": "Saffier 26"
 }

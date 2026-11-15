@@ -1,4 +1,5 @@
 {
+  "aka": [],
   "certs": [
     {
       "ToD_CL": 667.6,
@@ -12,7 +13,8 @@
   "clubId": "",
   "div": "C",
   "name": "BERLENGA",
+  "note": "",
   "sail": "",
   "skipperId": "fernando-paula-brito",
-  "type": "HUNTER 336"
+  "type": "Hunter 336"
 }
