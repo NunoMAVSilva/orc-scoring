@@ -431,11 +431,11 @@ function viewFleetEntries(head) {
   const target = eid ? `data-e="${esc(eid)}"` : single ? `data-c="${esc(cid)}"` : '';
   const canAct = S.canEdit && (eid || single);
   const actions = !canAct ? '' : `<div class="row">
-      <label class="btn sm" for="impFile">Importar lista (Excel/CSV)</label><input id="impFile" type="file" accept=".xlsx,.xls,.csv,.ods" ${target} hidden>
+      <label class="btn sm" for="impFile">Importar lista (Excel, CSV, PDF ou foto)</label><input id="impFile" type="file" accept=".xlsx,.xls,.csv,.ods,.pdf,application/pdf,image/*" ${target} hidden>
       <button class="btn sm" data-a="entries" ${eid ? `data-id="${esc(eid)}"` : `data-c="${esc(cid)}"`}>Escolher da base de dados</button>
       <button class="btn sm pri" data-a="newBoat" ${target}>+ Novo barco</button>
       ${eid && ids.length ? `<button class="btn sm dang" data-a="entryDelAll" data-e="${esc(eid)}">Retirar todos</button>` : ''}</div>
-    <div class="small muted">Importar: ficheiro com títulos Barco, Vela, Modelo, Skipper, Licença, Clube (só "Barco" é obrigatório).</div>`;
+    <div class="small muted">Excel/CSV: títulos Barco, Vela, Modelo, Skipper, Licença, Clube (só "Barco" é obrigatório). PDF ou foto da lista: lido com o Claude — confirme na pré-visualização.</div>`;
   const evTabs = evs.length > 1 ? `<div class="tabs">${evs.map(([k, e]) => `<button data-a="fleetEv" data-k="${esc(k)}" class="${S.fleetEv === k ? 'on' : ''}">${esc(e.name)} (${(e.entries || []).length})</button>`).join('')}<button data-a="fleetEv" data-k="all" class="${S.fleetEv === 'all' ? 'on' : ''}">Todas (${champEntries(cid).length})</button></div>` : '';
   const noCert = missing.length;
   return `<section><h1>Frota</h1><div class="muted">${esc(c.name)}${ev && !single ? ' · ' + esc(ev.name) : ''} · ${ids.length} inscritos${noCert ? ` · <span style="color:var(--flag-r)">${noCert} sem certificado</span>` : ''}</div></section>
@@ -1042,11 +1042,40 @@ function findBoat(x) {
     || Object.entries(S.boats).find(([, b]) => norm(b.name) === n || (b.aka || []).some(a => norm(a) === n)) || [null])[0];
 }
 function findClub(name) { const n = norm(name); return n ? (Object.entries(S.clubs).find(([, c]) => norm(c.short) === n || norm(c.name) === n) || [null])[0] : null; }
+/* PDF ou fotografia da lista de inscritos: páginas → imagens → leitura com o Claude */
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+async function pdfToImages(file, maxPages) {
+  if (!window.pdfjsLib) await loadScript(PDFJS + 'pdf.min.js');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
+  const doc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise, out = [];
+  for (let i = 1; i <= Math.min(doc.numPages, maxPages || 6); i++) {
+    const page = await doc.getPage(i), vp0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: Math.min(2.5, 1800 / vp0.width) });
+    const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+    await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    out.push(await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.85)));
+  }
+  return out;
+}
+async function readEntriesWithClaude(file) {
+  if (!SAMPLE) throw new Error('a leitura com o Claude não está disponível nesta vista');
+  const isPdf = /pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
+  const images = isPdf ? await pdfToImages(file, 6) : [await shrink(file)];
+  if (!images.length) throw new Error('o PDF não tem páginas');
+  const prompt = `És secretário de regata. Lê a lista de inscritos de uma regata de vela (imagens das páginas de um documento).
+Devolve APENAS JSON: {"rows":[{"name":"nome do barco","sail":"número de vela ou ''","type":"modelo/tipo do barco ou ''","skipper":"nome do skipper/responsável ou ''","license":"nº de licença ou ''","club":"clube (nome ou sigla) ou ''"}],"notes":"observações curtas em português"}
+Regras: uma linha por barco, pela ordem do documento; ignora cabeçalhos, totais, assinaturas e linhas vazias; não inventes dados — campo em falta fica ''; mantém os nomes como estão escritos.`;
+  const res = await SAMPLE.json(prompt, { images, modelTier: 'complex' });
+  const rows = ((res && res.rows) || []).map(x => ({ name: String(x.name || '').trim(), sail: String(x.sail || '').trim(), type: String(x.type || '').trim(), skipper: String(x.skipper || '').trim(), license: String(x.license || '').trim(), club: String(x.club || '').trim() })).filter(x => x.name);
+  return { rows, notes: (res && res.notes) || '', pages: images.length };
+}
 async function importEntries(file, eid) {
-  dialog('Importar inscritos', '<div class="info">A ler o ficheiro…</div>');
+  const viaClaude = /pdf$|^image\//i.test(file.type) || /\.(pdf|jpe?g|png|heic|webp)$/i.test(file.name);
+  dialog('Importar inscritos', `<div class="info">${viaClaude ? 'A ler a lista com o Claude… pode demorar alguns segundos.' : 'A ler o ficheiro…'}</div>`);
   try {
-    const [rows] = await Promise.all([readSheetRows(file), loadCatalog()]);
-    const list = parseEntries(rows).map(x => {
+    let parsed, readNote = '';
+    if (viaClaude) { const [r] = await Promise.all([readEntriesWithClaude(file), loadCatalog()]); parsed = r.rows; readNote = `Lido com o Claude (${r.pages} página${r.pages > 1 ? 's' : ''}) — confirme nomes, velas e clubes antes de importar.${r.notes ? ' Notas: ' + r.notes : ''}`; }
+    else { const [rows] = await Promise.all([readSheetRows(file), loadCatalog()]); parsed = parseEntries(rows); }
+    const list = parsed.map(x => {
       const boatId = findBoat(x), m = boatId ? null : certMatches(x.name, x.sail, x.type);
       return Object.assign(x, { boatId, cert: m && m.own[0] ? m.own[0][10] : null, modelN: m ? m.model.length + m.weak.length : 0 });
     });
@@ -1056,10 +1085,10 @@ async function importEntries(file, eid) {
     const row = (x, i) => `<tr><td><input type="checkbox" class="impChk" data-i="${i}" checked></td><td class="boat">${esc(x.name.toUpperCase())}<span class="sub">${esc([x.sail, x.type].filter(Boolean).join(' · '))}</span></td><td>${esc(x.skipper)}${x.skipper && !findSkipper(x.skipper) ? ' <span class="chip">novo</span>' : ''}</td><td>${esc(x.club)}${x.club && !findClub(x.club) ? ' <span class="chip">novo</span>' : ''}</td>
       <td>${x.boatId ? `<span class="chip k-orc">na BD</span>${(ev.entries || []).includes(x.boatId) ? ' <span class="chip">já inscrito</span>' : ''}` : '<span class="chip k-teste">novo</span>'}</td>
       <td>${x.boatId ? (E.certAt(S.boats[x.boatId], ev.dateFrom || today(), dbState()) ? 'tem' : '<span class="chip">sem</span>') : x.cert ? '<span class="chip k-orc">ORC encontrado</span>' : `<span class="chip">sem${x.modelN ? ' · ' + x.modelN + ' do modelo' : ''}</span>`}</td></tr>`;
-    dialog('Importar inscritos · ' + ev.name, `<div class="small muted">${list.length} linhas lidas. Barcos já na base de dados (mesma vela ou nome) são reaproveitados; os novos são criados com o certificado ORC próprio quando é encontrado. Para os "sem", escolha depois em Inscritos → "sem certificado".</div>
+    dialog('Importar inscritos · ' + ev.name, `${readNote ? `<div class="info small">${esc(readNote)}</div>` : ''}<div class="small muted">${list.length} linhas lidas. Barcos já na base de dados (mesma vela ou nome) são reaproveitados; os novos são criados com o certificado ORC próprio quando é encontrado. Para os "sem", escolha depois em Inscritos → "sem certificado".</div>
       <div class="scroll"><table><thead><tr><th></th><th>Barco</th><th>Skipper</th><th>Clube</th><th>Estado</th><th>Cert.</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
       <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="impConfirm">Importar e inscrever</button></div>`);
-  } catch (err) { dialog('Importar inscritos', `<div class="warn">Não foi possível importar: ${esc(err.message || err)}.</div><div class="small muted">Use um ficheiro .xlsx ou .csv com uma linha de títulos: Barco, Vela, Modelo, Skipper, Licença, Clube (só "Barco" é obrigatório).</div>`); }
+  } catch (err) { dialog('Importar inscritos', `<div class="warn">Não foi possível importar: ${esc(err.message || err)}.</div><div class="small muted">Use um ficheiro .xlsx ou .csv com uma linha de títulos (Barco, Vela, Modelo, Skipper, Licença, Clube), ou um PDF/foto legível da lista.</div>`); }
 }
 async function confirmImport() {
   if (S.importing) return;
