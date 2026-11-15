@@ -16,6 +16,138 @@
     "too-much",
     "troton"
   ],
+  "frozen": {
+    "brizo": [
+      {
+        "CDL": 10.071,
+        "GPH": 603.7,
+        "ToT_CL": 1.0236,
+        "ToT_WL": 0.8968,
+        "from": "2026-01-01",
+        "kind": "copiado",
+        "ref": "03530004WTQ",
+        "src": "copiado de AQUAHOLIC POR 8502 POR 2026 Club (HANSE 400)"
+      }
+    ],
+    "choque": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "corto-maltese": [
+      {
+        "ToD_CL": 724.8,
+        "ToT_CL": 0.8278,
+        "ToT_WL": 0.7301,
+        "from": "2025-01-01",
+        "kind": "copiado",
+        "src": "Pallas NED 2021"
+      }
+    ],
+    "impulsive": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "javali-sailing": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "luna": [
+      {
+        "CDL": 5.724,
+        "GPH": 774.5,
+        "LOA": 7.2,
+        "ToD_CL": 751.7,
+        "ToD_WL": 843.3,
+        "ToT_CL": 0.7982,
+        "ToT_WL": 0.7115,
+        "displacement": 1569,
+        "from": "2021-01-01",
+        "kind": "orc",
+        "ref": "0345000111P",
+        "spinnakers": 4,
+        "src": "LUNA · ORC Club 2021 (Mallard Start 7) · cert. 2021 · recomendado",
+        "year": 2021
+      }
+    ],
+    "paquito": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "sambuca": [
+      {
+        "CDL": 10.423,
+        "ToD_CL": 592.6,
+        "ToT_CL": 1.0125,
+        "ToT_WL": 0.8832,
+        "from": "2026-06-22",
+        "kind": "copiado",
+        "src": "Voetsak AUS 2026"
+      }
+    ],
+    "tita": [
+      {
+        "ToD_CL": 589.7,
+        "ToT_CL": 1.012,
+        "ToT_WL": 0.8936,
+        "from": "2026-04-29",
+        "kind": "derivado",
+        "src": "derivado Cidade 2026 · ToD 589,7 (valor usado pela organização na Volta e Santa Iria 2026)"
+      }
+    ],
+    "too-much": [
+      {
+        "CDL": 7.522,
+        "ToD_CL": 617.5,
+        "ToT_CL": 0.9716,
+        "ToT_WL": 0.8573,
+        "from": "2026-05-01",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "troton": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ]
+  },
+  "locked": {
+    "at": "2026-11-15T11:49:34.348Z"
+  },
   "name": "Regata de São Martinho",
   "skippers": {
     "choque": "joao-catarino",
