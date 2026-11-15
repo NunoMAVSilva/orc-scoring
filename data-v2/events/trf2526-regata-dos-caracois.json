@@ -16,6 +16,130 @@
     "too-much",
     "troton"
   ],
+  "frozen": {
+    "berlenga": [
+      {
+        "ToD_CL": 667.6,
+        "ToT_CL": 0.8988,
+        "ToT_WL": 0.7851,
+        "from": "2025-01-01",
+        "kind": "copiado",
+        "src": "Raphael KOR 2021"
+      }
+    ],
+    "choque": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "cidade-de-faro": [
+      {
+        "CDL": 9.36,
+        "ToD_CL": 597.1,
+        "ToT_CL": 1.0048,
+        "ToT_WL": 0.8872,
+        "from": "2026-04-29",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "jafoste": [
+      {
+        "CDL": 8.409,
+        "ToD_CL": 647.5,
+        "ToT_CL": 0.9267,
+        "ToT_WL": 0.8213,
+        "from": "2026-02-13",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "javali-sailing": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "magano": [
+      {
+        "CDL": 9.856,
+        "ToD_CL": 567.1,
+        "ToT_CL": 1.0581,
+        "ToT_WL": 0.9337,
+        "from": "2025-06-05",
+        "kind": "orc",
+        "src": "ESP 2025 INT"
+      }
+    ],
+    "paquito": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "sambuca": [
+      {
+        "CDL": 10.423,
+        "ToD_CL": 591.2,
+        "ToT_CL": 1.0148,
+        "ToT_WL": 0.8856,
+        "from": "2025-01-01",
+        "kind": "copiado",
+        "src": "Voetsak AUS 2025"
+      }
+    ],
+    "tita": [
+      {
+        "ToD_CL": 589.7,
+        "ToT_CL": 1.012,
+        "ToT_WL": 0.8936,
+        "from": "2026-04-29",
+        "kind": "derivado",
+        "src": "derivado Cidade 2026 · ToD 589,7 (valor usado pela organização na Volta e Santa Iria 2026)"
+      }
+    ],
+    "too-much": [
+      {
+        "CDL": 7.522,
+        "ToD_CL": 617.5,
+        "ToT_CL": 0.9716,
+        "ToT_WL": 0.8573,
+        "from": "2026-05-01",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "troton": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ]
+  },
+  "locked": {
+    "at": "2026-11-15T08:52:44.454Z"
+  },
   "name": "Regata dos Caracóis",
   "venue": ""
 }

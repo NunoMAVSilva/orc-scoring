@@ -19,6 +19,153 @@
     "too-much",
     "troton"
   ],
+  "frozen": {
+    "choque": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "cidade-de-faro": [
+      {
+        "CDL": 9.36,
+        "ToD_CL": 597.1,
+        "ToT_CL": 1.0048,
+        "ToT_WL": 0.8872,
+        "from": "2026-04-29",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "corto-maltese": [
+      {
+        "ToD_CL": 724.8,
+        "ToT_CL": 0.8278,
+        "ToT_WL": 0.7301,
+        "from": "2025-01-01",
+        "kind": "copiado",
+        "src": "Pallas NED 2021"
+      }
+    ],
+    "impulsive": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "javali-sailing": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "lpaz": [],
+    "magano": [
+      {
+        "CDL": 9.856,
+        "ToD_CL": 567.8,
+        "ToT_CL": 1.0567,
+        "ToT_WL": 0.9333,
+        "from": "2026-07-08",
+        "kind": "orc",
+        "src": "ESP 2026 INT"
+      }
+    ],
+    "paquito": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "seita-too": [
+      {
+        "CDL": 6.149,
+        "ToD_CL": 714.5,
+        "ToT_CL": 0.8397,
+        "ToT_WL": 0.7387,
+        "from": "2026-07-09",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "stella-maris": [
+      {
+        "CDL": 9.922,
+        "ToD_CL": 611,
+        "ToT_CL": 0.982,
+        "ToT_WL": 0.8587,
+        "from": "2026-03-17",
+        "kind": "copiado",
+        "src": "ALS GRE 2026"
+      }
+    ],
+    "sula-too": [
+      {
+        "CDL": 8.355,
+        "ToD_CL": 636.3,
+        "ToT_CL": 0.943,
+        "ToT_WL": 0.8369,
+        "from": "2026-04-30",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "tita": [
+      {
+        "ToD_CL": 589.7,
+        "ToT_CL": 1.012,
+        "ToT_WL": 0.8936,
+        "from": "2026-04-29",
+        "kind": "derivado",
+        "src": "derivado Cidade 2026 · ToD 589,7 (valor usado pela organização na Volta e Santa Iria 2026)"
+      }
+    ],
+    "too-much": [
+      {
+        "CDL": 7.522,
+        "ToD_CL": 617.5,
+        "ToT_CL": 0.9716,
+        "ToT_WL": 0.8573,
+        "from": "2026-05-01",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "troton": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ]
+  },
+  "locked": {
+    "at": "2026-11-15T08:52:44.454Z"
+  },
   "name": "Cidade de Faro",
   "venue": ""
 }

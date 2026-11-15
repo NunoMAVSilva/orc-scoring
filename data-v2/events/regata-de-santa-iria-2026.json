@@ -16,6 +16,130 @@
     "too-much",
     "troton"
   ],
+  "frozen": {
+    "brizo": [
+      {
+        "CDL": 10.071,
+        "GPH": 603.7,
+        "ToT_CL": 1.0236,
+        "ToT_WL": 0.8968,
+        "from": "2026-01-01",
+        "kind": "copiado",
+        "ref": "03530004WTQ",
+        "src": "copiado de AQUAHOLIC POR 8502 POR 2026 Club (HANSE 400)"
+      }
+    ],
+    "choque": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "cidade-de-faro": [
+      {
+        "CDL": 9.36,
+        "ToD_CL": 597.1,
+        "ToT_CL": 1.0048,
+        "ToT_WL": 0.8872,
+        "from": "2026-04-29",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "impulsive": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "magano": [
+      {
+        "CDL": 9.856,
+        "ToD_CL": 567.8,
+        "ToT_CL": 1.0567,
+        "ToT_WL": 0.9333,
+        "from": "2026-07-08",
+        "kind": "orc",
+        "src": "ESP 2026 INT"
+      }
+    ],
+    "mar-meu": [
+      {
+        "ToD_CL": 584.6,
+        "ToT_CL": 1.0263,
+        "from": "2026-01-01",
+        "kind": "orc",
+        "src": "MAR MEU POR 2018 2026 Club (POGO 30) · certificado anterior, usado pela organização na Santa Iria 2026"
+      }
+    ],
+    "paquito": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "stella-maris": [
+      {
+        "CDL": 9.922,
+        "ToD_CL": 611,
+        "ToT_CL": 0.982,
+        "ToT_WL": 0.8587,
+        "from": "2026-03-17",
+        "kind": "copiado",
+        "src": "ALS GRE 2026"
+      }
+    ],
+    "tita": [
+      {
+        "ToD_CL": 589.7,
+        "ToT_CL": 1.012,
+        "ToT_WL": 0.8936,
+        "from": "2026-04-29",
+        "kind": "derivado",
+        "src": "derivado Cidade 2026 · ToD 589,7 (valor usado pela organização na Volta e Santa Iria 2026)"
+      }
+    ],
+    "too-much": [
+      {
+        "CDL": 7.522,
+        "ToD_CL": 617.5,
+        "ToT_CL": 0.9716,
+        "ToT_WL": 0.8573,
+        "from": "2026-05-01",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "troton": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ]
+  },
+  "locked": {
+    "at": "2026-11-15T08:52:44.454Z"
+  },
   "name": "Regata de Santa Iria 2026",
   "skippers": {
     "choque": "nuno-santos",

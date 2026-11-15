@@ -29,6 +29,294 @@
     "troton",
     "vvlva"
   ],
+  "frozen": {
+    "antares": [
+      {
+        "CDL": 8.507,
+        "GPH": 649.4,
+        "ToT_CL": 0.9509,
+        "ToT_WL": 0.8407,
+        "from": "2026-01-01",
+        "kind": "orc",
+        "ref": "03510004V96",
+        "src": "ANTARES ESP-6780_C ESP 2026 Club (DUFOUR 34)"
+      }
+    ],
+    "choque": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "cidade-de-faro": [
+      {
+        "CDL": 9.36,
+        "ToD_CL": 597.1,
+        "ToT_CL": 1.0048,
+        "ToT_WL": 0.8872,
+        "from": "2026-04-29",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "corsario-do-arade": [
+      {
+        "CDL": 9.096,
+        "GPH": 568.8,
+        "ToT_CL": 1.0823,
+        "ToT_WL": 0.9517,
+        "from": "2026-01-01",
+        "kind": "orc",
+        "ref": "03530004O02",
+        "src": "CORSÁRIO DO ARADE POR 2011 POR 2026 Club (COMUZZIi C32)"
+      }
+    ],
+    "dark-n-stormy": [
+      {
+        "CDL": 8.927,
+        "GPH": 650.1,
+        "ToD_CL": 629,
+        "ToT_CL": 0.954,
+        "ToT_WL": 0.836,
+        "from": "2026-01-01",
+        "kind": "copiado",
+        "ref": "0302000507V",
+        "src": "copiado de IONI S69 AUS 2026 Club (Sun Odyssey 36i) · Sailor Services"
+      }
+    ],
+    "firefly": [
+      {
+        "CDL": 9.436,
+        "GPH": 606.3,
+        "ToD_CL": 587.8,
+        "ToT_CL": 1.0207,
+        "ToT_WL": 0.9104,
+        "from": "2026-01-01",
+        "kind": "orc",
+        "ref": "03860004TD1",
+        "src": "Firefly GBR 3550L GBR 2026 Club (X-35 OD) · Sailor Services"
+      }
+    ],
+    "gianzo": [
+      {
+        "CDL": 10.065,
+        "GPH": 603.6,
+        "ToT_CL": 1.028,
+        "ToT_WL": 0.9123,
+        "from": "2026-01-01",
+        "kind": "orc",
+        "ref": "03530004BE9",
+        "src": "GIANZO POR 8155 POR 2026 Club (GRAND SOLEIL 40R)"
+      }
+    ],
+    "impulsive": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "jafoste": [
+      {
+        "CDL": 8.409,
+        "ToD_CL": 647.5,
+        "ToT_CL": 0.9267,
+        "ToT_WL": 0.8213,
+        "from": "2026-02-13",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "javali-sailing": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "kaos-primero": [
+      {
+        "CDL": 10.075,
+        "GPH": 593.1,
+        "ToD_CL": 576.6,
+        "ToT_CL": 1.0406,
+        "ToT_WL": 0.922,
+        "from": "2023-01-01",
+        "kind": "orc",
+        "ref": "03510002C0T",
+        "src": "KAOS PRIMERO ESP-4919 ESP 2023 ORCi · Sailor Services"
+      }
+    ],
+    "l-auberge": [
+      {
+        "CDL": 10.369,
+        "GPH": 614,
+        "ToD_CL": 592.7,
+        "ToT_CL": 1.0123,
+        "ToT_WL": 0.886,
+        "from": "2026-01-01",
+        "kind": "copiado",
+        "ref": "03190004U0Q",
+        "src": "copiado de MIZZICA ITA-MIZZI ITA 2026 Club (Oceanis 43) · Sailor Services"
+      }
+    ],
+    "magano": [
+      {
+        "CDL": 9.856,
+        "ToD_CL": 567.8,
+        "ToT_CL": 1.0567,
+        "ToT_WL": 0.9333,
+        "from": "2026-07-08",
+        "kind": "orc",
+        "src": "ESP 2026 INT"
+      }
+    ],
+    "pakalma": [
+      {
+        "CDL": 6.35,
+        "GPH": 776.3,
+        "ToD_CL": 750.3,
+        "ToT_CL": 0.7997,
+        "ToT_WL": 0.6993,
+        "from": "2026-01-01",
+        "kind": "copiado",
+        "ref": "03420004VJJ",
+        "src": "copiado de BO GBR-5262 GRE 2026 Club (Rival 34) · Sailor Services"
+      }
+    ],
+    "paquito": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "pardela": [
+      {
+        "CDL": 6.35,
+        "GPH": 770.9,
+        "ToD_CL": 742.3,
+        "ToT_CL": 0.8083,
+        "ToT_WL": 0.7141,
+        "from": "2026-01-01",
+        "kind": "copiado",
+        "ref": "03520004I28",
+        "src": "copiado de CALLE STRÖMER GER 7131 GER 2026 Club (Ohlson 8:8) · Sailor Services"
+      }
+    ],
+    "pyxis": [
+      {
+        "CDL": 6.137,
+        "GPH": 810.4,
+        "ToD_CL": 792.6,
+        "ToD_WL": 904.1,
+        "ToT_CL": 0.757,
+        "ToT_WL": 0.6636,
+        "from": "2018-01-01",
+        "kind": "copiado",
+        "ref": "GRE01009262",
+        "src": "copiado de IASONAS GRE-846 GRE 2018 Club (Moody 29) · Sailor Services · ToT b/s convertido para a escala atual (600 ÷ 904,1; impresso 0,7466)"
+      }
+    ],
+    "sambuca": [
+      {
+        "CDL": 10.423,
+        "ToD_CL": 592.6,
+        "ToT_CL": 1.0125,
+        "ToT_WL": 0.8832,
+        "from": "2026-06-22",
+        "kind": "copiado",
+        "src": "Voetsak AUS 2026"
+      }
+    ],
+    "stella-maris": [
+      {
+        "CDL": 9.922,
+        "ToD_CL": 611,
+        "ToT_CL": 0.982,
+        "ToT_WL": 0.8587,
+        "from": "2026-03-17",
+        "kind": "copiado",
+        "src": "ALS GRE 2026"
+      }
+    ],
+    "sula-too": [
+      {
+        "CDL": 8.355,
+        "ToD_CL": 636.3,
+        "ToT_CL": 0.943,
+        "ToT_WL": 0.8369,
+        "from": "2026-04-30",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "tita": [
+      {
+        "ToD_CL": 589.7,
+        "ToT_CL": 1.012,
+        "ToT_WL": 0.8936,
+        "from": "2026-04-29",
+        "kind": "derivado",
+        "src": "derivado Cidade 2026 · ToD 589,7 (valor usado pela organização na Volta e Santa Iria 2026)"
+      }
+    ],
+    "too-much": [
+      {
+        "CDL": 7.522,
+        "ToD_CL": 617.5,
+        "ToT_CL": 0.9716,
+        "ToT_WL": 0.8573,
+        "from": "2026-05-01",
+        "kind": "orc",
+        "src": "POR 2026"
+      }
+    ],
+    "troton": [
+      {
+        "CDL": 7.306,
+        "ToD_CL": 643,
+        "ToT_CL": 0.9331,
+        "ToT_WL": 0.8306,
+        "from": "2026-03-19",
+        "kind": "classe",
+        "src": "classe 2026 (1.º cert 2026: Troton 19/03)"
+      }
+    ],
+    "vvlva": [
+      {
+        "CDL": 7.411,
+        "GPH": 697.5,
+        "ToD_CL": 674.9,
+        "ToT_CL": 0.889,
+        "ToT_WL": 0.7932,
+        "from": "2026-01-01",
+        "kind": "copiado",
+        "ref": "03420004IUQ",
+        "src": "copiado de GALAZIOS ANEMOS GRE-49518 GRE 2026 Club (Feeling 920) · Sailor Services"
+      }
+    ]
+  },
+  "locked": {
+    "at": "2026-11-15T08:52:44.454Z"
+  },
   "name": "33ª Volta ao Algarve à Vela 2026",
   "skippers": {
     "too-much": "joana-cassiano"
