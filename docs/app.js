@@ -63,16 +63,38 @@ function hasValidOrc(b, rules) {
 }
 function isOpen(b, rules) { rules = rules || ctxRules(); return !!(rules && rules.openGroup) && !hasValidOrc(b, rules); }
 function divOf(b, rules) { rules = rules || ctxRules(); return isOpen(b, rules) ? 'OPEN' : E.divisionOf(b, (rules && rules.dateTo) || '', dbState(), rules); } // divisão pelos certificados em vigor no fim do campeonato
-function groupsOf(rules) {
+/* Grupos de classificação do campeonato. Subclasses (divisões, A+B+C, ORC Open, monotipias) só abrem
+   com pelo menos rules.minBoats barcos inscritos no campeonato; as que não abrem não são publicadas. */
+function allGroupsOf(rules) {
   const g = [{ k: 'GERAL', t: 'Geral' }];
-  if (rules && rules.openGroup) g.push({ k: 'ORC', t: 'Geral ORC' }, { k: 'OPEN', t: 'Geral ORC Open' });
-  ((rules && rules.groups) || DEFAULT_RULES.groups).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d }));
-  ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name }));
+  if (rules && rules.openGroup) g.push({ k: 'ORC', t: 'Geral ORC' }, { k: 'OPEN', t: 'Geral ORC Open', sub: true });
+  if (rules && rules.abcGroup) g.push({ k: 'ABC', t: 'Geral A+B+C (sem Sportboats)', sub: true });
+  ((rules && rules.groups) || DEFAULT_RULES.groups).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d, sub: true }));
+  ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name, sub: true }));
   return g;
+}
+function champBoatsOf(rules) {
+  const cid = Object.keys(S.champs).find(k => S.champs[k] === rules); if (!cid) return null;
+  return [...new Set(champEvents(cid).flatMap(([, e]) => e.entries || []))].filter(b => S.boats[b]);
+}
+function groupCount(k, rules, boats) { const f = groupFilter(k, rules); return boats.filter(b => !f || f(S.boats[b])).length; }
+function closedGroupsOf(rules) {
+  const min = Number(rules && rules.minBoats) || 0, boats = min > 1 && champBoatsOf(rules);
+  if (!boats) return [];
+  return allGroupsOf(rules).filter(g => g.sub).map(g => Object.assign({ n: groupCount(g.k, rules, boats) }, g)).filter(g => g.n < min);
+}
+function groupsOf(rules) {
+  const closed = new Set(closedGroupsOf(rules).map(g => g.k));
+  return allGroupsOf(rules).filter(g => !closed.has(g.k));
+}
+function closedNote(rules) {
+  const c = closedGroupsOf(rules); if (!c.length || !S.canEdit) return '';
+  return `<div class="small muted" style="margin:4px 0">Subclasses não abertas (mínimo ${Number(rules.minBoats)} barcos), não publicadas: ${c.map(g => esc(g.t) + ' (' + g.n + ')').join(' · ')}</div>`;
 }
 function groupFilter(k, rules) {
   if (k === 'GERAL') return null;
   if (k.startsWith('DIV:')) { const d = k.slice(4); return b => divOf(b, rules) === d; }
+  if (k === 'ABC') return b => ['A', 'B', 'C'].includes(divOf(b, rules));
   if (k.startsWith('CLS:')) { const c = k.slice(4); return b => b.classRef === c; }
   if (k === 'OPEN') return b => isOpen(b, rules);
   if (k === 'ORC') return b => !isOpen(b, rules);
@@ -221,7 +243,7 @@ function viewStandings() {
   const fin = races.filter(r => r.status === 'final').length;
   return `<section class="row spread"><div><h1>${esc(c.name)}</h1><div class="small muted">${c.dateFrom ? evDates(c) + ' · ' : ''}${champEvents(cid).length} provas · ${races.length} regatas · ${fin} finais${c.season ? ' · ' + esc(c.season) : ''}</div></div>
     <div class="row">${S.canEdit ? `<button class="btn sm" data-a="editChamp" data-id="${esc(cid)}">Definições</button>` : ''}<button class="btn sm" data-a="export">Exportar</button></div></section>
-    <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
+    <div class="tabs">${tabs.map(t => `<button data-a="grp" data-k="${esc(t.k)}" class="${S.group === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>${closedNote(c)}
     ${body}`;
 }
 function eventStandings(eid, groupKey) {
@@ -299,7 +321,7 @@ function viewEvent(eid, single) {
     <div class="card"><div class="row spread"><h3>Regatas</h3>${canEditEv(eid) ? `<button class="btn sm pri" data-a="newRace" data-e="${esc(eid)}">+ Nova regata</button>` : ''}</div>
       <div class="list">${raceItems || '<div class="small muted">Ainda sem regatas.</div>'}</div></div>
     ${single ? '' : `<div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
-      <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
+      <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>${closedNote(rules)}
       ${standingsTable(st, rs, rules)}</div>`}
     <div class="small muted">${entries.length} inscritos${entries.length ? '' : ' — '}${entries.length ? ' · ' : ''}<a href="#frota" data-a="fleetGo">${S.canEdit ? 'gerir inscrições na Frota' : 'ver na Frota'}</a></div>
     ${(() => { const nc = entries.filter(([, b]) => !b.classRef && !E.certAt(b, e.dateFrom || today(), dbState())).length; return nc ? `<div class="warn">⚠ ${nc} inscrito${nc > 1 ? 's' : ''} sem certificado — <a href="#frota" data-a="fleetGo">resolver na Frota</a></div>` : ''; })()}`;
@@ -479,15 +501,19 @@ const delBtn = (a, id, label) => id ? `<button class="btn dang" data-a="${a}" da
 function rulesFields(r) {
   return `${field('cDisc', 'Descartes (até N regatas: descartes)', (r.discards || []).map(d => d.upTo + ':' + d.n).join(', '), 'placeholder="3:0, 8:1, 999:2"')}
     ${field('cA', 'Divisão A: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).A, 'inputmode="decimal"')}${field('cB', 'Divisão B: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).B, 'inputmode="decimal"')}
-    ${field('cGroups', 'Divisões a classificar', (r.groups || []).join(', '))}</div>
-    <label class="row small" style="margin-top:4px"><input type="checkbox" id="cOpen" ${r.openGroup ? 'checked' : ''}> <span><b>ORC Open</b> — barcos sem certificado ORC próprio válido para o ano do evento (copiado, derivado, manual ou de outro ano) saem das divisões e formam o grupo ORC Open</span></label>
+    ${field('cMin', 'Mínimo de barcos para abrir subclasse', r.minBoats || '', 'inputmode="numeric" placeholder="sem mínimo"')}</div>
+    <div class="small muted">Subclasses a classificar:</div><div class="row">${['A', 'B', 'C', 'SB'].concat((r.groups || []).filter(d => !['A', 'B', 'C', 'SB'].includes(d))).map(d => `<label class="row small"><input type="checkbox" class="cDiv" value="${esc(d)}" ${(r.groups || []).includes(d) ? 'checked' : ''}> ${d === 'SB' ? 'Sportboats (SB)' : 'ORC ' + esc(d)}</label>`).join('')}</div>
+    <label class="row small" style="margin-top:4px;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="cABC" ${r.abcGroup ? 'checked' : ''}> <span><b>Geral A+B+C</b> — classificação conjunta das subclasses A, B e C, sem os Sportboats</span></label>
+    <label class="row small" style="margin-top:4px;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="cOpen" ${r.openGroup ? 'checked' : ''}> <span><b>ORC Open</b> — barcos sem certificado ORC próprio válido para o ano do evento (copiado, derivado, manual ou de outro ano) saem das divisões e formam o grupo ORC Open</span></label>
     <div class="small muted">Classificações por classe (monotipias):</div><div class="row">${Object.entries(S.classes).map(([k, cl]) => `<label class="row small"><input type="checkbox" class="cCls" value="${esc(k)}" ${(r.classGroups || []).includes(k) ? 'checked' : ''}> ${esc(cl.name)}</label>`).join('') || '<span class="small muted">Sem classes definidas.</span>'}</div>`;
 }
 function readRules() {
   return {
     discards: v('cDisc').split(',').map(s => s.split(':').map(Number)).filter(p => p.length === 2 && !p.some(isNaN)).map(([u, n]) => ({ upTo: u, n })).sort((x, y) => x.upTo - y.upTo),
     divLimits: { A: Number(v('cA').replace(',', '.')), B: Number(v('cB').replace(',', '.')) },
-    groups: v('cGroups').split(',').map(s => s.trim()).filter(Boolean),
+    groups: [...document.querySelectorAll('.cDiv:checked')].map(x => x.value),
+    abcGroup: !!($('#cABC') && $('#cABC').checked),
+    minBoats: Number(v('cMin')) > 1 ? Math.round(Number(v('cMin'))) : 0,
     classGroups: [...document.querySelectorAll('.cCls:checked')].map(x => x.value),
     openGroup: !!($('#cOpen') && $('#cOpen').checked),
   };
@@ -927,7 +953,7 @@ async function onClick(e) {
     const ev = Object.assign(id ? clone(S.events[id]) : { entries: [] }, { name: v('eName'), champ: v('eChamp'), dateFrom: v('eFrom'), dateTo: v('eTo') || v('eFrom'), clubId: v('eClub'), venue: v('eVenue') });
     if (ev.dateTo < ev.dateFrom) { toast('A data de fim é anterior à de início.'); return; }
     if (!ev.champ || !S.champs[ev.champ]) { toast('Escolha o campeonato.'); return; }
-    ['discards', 'divLimits', 'groups', 'classGroups'].forEach(k => delete ev[k]);
+    ['discards', 'divLimits', 'groups', 'classGroups', 'abcGroup', 'minBoats'].forEach(k => delete ev[k]);
     const eid = id || uniqueId('events', slug(ev.name + ' ' + ev.dateFrom.slice(0, 4)));
     if (await save('events', eid, ev)) { S.ctx = 'c:' + ev.champ; try { localStorage.setItem('ctx', S.ctx); } catch (_) {} closeDlg(); pickCtx(); location.hash = 'prova-' + eid; }
   }
