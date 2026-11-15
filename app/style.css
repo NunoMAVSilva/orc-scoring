@@ -137,3 +137,7 @@ img.clogo { background: #fff; }
   header.top .ctx { max-width: 64%; }
   #ctxLabel { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; }
 }
+/* separadores da regata (Classificação | Chegadas): barra segmentada, distinta dos filtros de subclasse */
+.tabs.rtabs { gap: 0; border: 1px solid var(--line); border-radius: 10px; padding: 3px; background: var(--surface); margin: 4px 0 2px; }
+.tabs.rtabs button { flex: 1; border: 0; border-radius: 8px; padding: 8px 10px; font-size: .95rem; background: transparent; }
+.tabs.rtabs button.on { background: var(--ink); color: var(--bg); }
