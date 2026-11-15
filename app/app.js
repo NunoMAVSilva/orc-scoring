@@ -803,26 +803,41 @@ function exportText() {
   if (races) sc.races.filter(E.isScored).forEach(r => gs.forEach(g => out.push(expRaceText(r, sc.rules, g.k, g.t))));
   return out.join('\n\n');
 }
+/* HTML exportado: um único ficheiro com filtros no topo (classificação total / regata e subclasse);
+   mostra uma tabela de cada vez. Sem JavaScript ou ao imprimir, mostra todas as tabelas seguidas. */
 function exportHTML() {
   const { sc, gs, races } = expChoice(), rules = sc.rules, scored = sc.races.filter(E.isScored);
-  let blocks = '';
+  const secs = [], cols = [];
   if (sc.kind !== 'race') {
-    const tot = gs.map(g => { const { st, rs } = expSeries(sc, g.k); return st.table.length ? `<h3>${esc(g.t)}</h3>${standingsTable(st, rs, rules, { skipper: true }).replace(/<a [^>]*>|<\/a>/g, '')}<p class="small muted">${penaltyNote(st, rs, g.k, rules)}</p>` : ''; }).join('');
-    if (tot) blocks += `<h2>Classificação ${sc.kind === 'event' ? 'da prova' : 'geral'}</h2>${tot}`;
+    const ct = 'Classificação ' + (sc.kind === 'event' ? 'da prova' : 'geral');
+    gs.forEach(g => { const { st, rs } = expSeries(sc, g.k); if (st.table.length) secs.push({ c: 'T', g: g.k, html: `<h2>${ct}</h2><h3>${esc(g.t)}</h3>${standingsTable(st, rs, rules, { skipper: true }).replace(/<a [^>]*>|<\/a>/g, '')}<p class="small muted">${penaltyNote(st, rs, g.k, rules)}</p>` }); });
+    if (secs.length) cols.push(['T', sc.kind === 'event' ? 'Total da prova' : 'Total']);
   }
   if (races) scored.forEach((r, i) => {
-    const per = gs.map(g => { const { rows, pending } = E.raceResults(r, dbState(), groupFilter(g.k, rules)); return rows.length ? `<h3>${esc(g.t)}</h3>${raceTable(r, rules, rows, pending, { skipper: true })}` : ''; }).join('');
-    if (per) blocks += `<h2>${sc.kind === 'race' ? '' : 'R' + (i + 1) + ' · '}${esc(raceTitle(r))}</h2><p class="small muted">${dPT(r.date)} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.start ? ' · largada ' + esc(r.start) : ''}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''} · ${r.status === 'final' ? 'Final' : 'Provisória'}</p>${per}`;
+    const c = 'R' + (i + 1), head = `<h2>${sc.kind === 'race' ? '' : c + ' · '}${esc(raceTitle(r))}</h2><p class="small muted">${dPT(r.date)} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.start ? ' · largada ' + esc(r.start) : ''}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''} · ${r.status === 'final' ? 'Final' : 'Provisória'}</p>`;
+    let any = false;
+    gs.forEach(g => { const { rows, pending } = E.raceResults(r, dbState(), groupFilter(g.k, rules)); if (rows.length) { any = true; secs.push({ c, g: g.k, html: `${head}<h3>${esc(g.t)}</h3><div class="scroll">${raceTable(r, rules, rows, pending, { skipper: true })}</div>` }); } });
+    if (any) cols.push([c, sc.kind === 'race' ? raceTitle(r) : c]);
   });
+  const usedG = gs.filter(g => secs.some(x => x.g === g.k));
+  const bar = (cols.length > 1 || usedG.length > 1) ? `<div class="xbar">${cols.length > 1 ? `<div class="tabs xc">${cols.map(([k, t]) => `<button type="button" data-c="${esc(k)}">${esc(t)}</button>`).join('')}</div>` : ''}${usedG.length > 1 ? `<div class="tabs xg">${usedG.map(g => `<button type="button" data-g="${esc(g.k)}">${esc(g.t)}</button>`).join('')}</div>` : ''}</div>` : '';
+  const body = secs.map(x => `<section class="xb" data-c="${esc(x.c)}" data-g="${esc(x.g)}">${x.html}</section>`).join('');
   const nd = sc.kind === 'race' ? 0 : expSeries(sc, 'GERAL').st.nDiscards, now = new Date();
   const club = (S.clubs[(sc.kind === 'event' && S.events[sc.id].clubId) || rules.clubId] || {}).name || '';
   const css = Array.from(document.styleSheets).map(x => { try { return Array.from(x.cssRules).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
   const when = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} às ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const info = sc.kind === 'race' ? '' : `<p>${scored.length} regata${scored.length === 1 ? '' : 's'}${sc.kind === 'champ' || champEvents((S.events[sc.id] || {}).champ).length <= 1 ? ' · ' + (nd ? nd + ' descarte' + (nd > 1 ? 's' : '') : 'sem descartes') : ' · soma sem descartes'}</p>`;
-  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(sc.title)}</title><style>${css} body{padding:16px} .sticky{position:static} .exp-head{margin-bottom:12px} .exp-head .club{font-size:1.05rem;color:var(--muted);margin-top:2px} h2{margin-top:22px} footer{margin-top:24px;padding-top:10px;border-top:1px solid var(--line)}</style></head><body>
+  const js = `(function(){var d=document,h=d.documentElement;h.className+=' js';var C=d.querySelector('.xc button'),G=d.querySelector('.xg button');var s={c:C?C.getAttribute('data-c'):null,g:G?G.getAttribute('data-g'):null};
+function show(){var n=0;[].forEach.call(d.querySelectorAll('.xb'),function(e){var ok=(!s.c||e.getAttribute('data-c')===s.c)&&(!s.g||e.getAttribute('data-g')===s.g);e.classList.toggle('on',ok);if(ok)n++;});
+[].forEach.call(d.querySelectorAll('.xc button'),function(b){b.classList.toggle('on',b.getAttribute('data-c')===s.c);});[].forEach.call(d.querySelectorAll('.xg button'),function(b){b.classList.toggle('on',b.getAttribute('data-g')===s.g);});
+d.getElementById('xmsg').style.display=n?'none':'block';}
+d.addEventListener('click',function(e){var b=e.target.closest('.xbar button');if(!b)return;if(b.hasAttribute('data-c'))s.c=b.getAttribute('data-c');else s.g=b.getAttribute('data-g');show();});show();})();`;
+  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(sc.title)}</title><style>${css} body{padding:16px} .sticky{position:static} .exp-head{margin-bottom:12px} .exp-head .club{font-size:1.05rem;color:var(--muted);margin-top:2px} h2{margin-top:22px} footer{margin-top:24px;padding-top:10px;border-top:1px solid var(--line)}
+.xbar{display:none;position:sticky;top:0;z-index:5;background:var(--bg,#fff);padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:6px} .xbar .tabs{margin:4px 0} html.js .xbar{display:block} html.js .xb{display:none} html.js .xb.on{display:block} .xb h2{margin-top:14px} #xmsg{display:none}
+@media print{html.js .xb,.xb{display:block!important;break-inside:avoid-page} .xbar,#xmsg{display:none!important}}</style></head><body>
 <div class="exp-head"><h1>${esc(sc.title)}</h1>${sc.sub && sc.sub !== sc.title ? `<div class="club">${esc(sc.sub)}</div>` : ''}${club ? `<div class="club">${esc(club)}</div>` : ''}${info}</div>
-${blocks || '<p>Sem resultados nas classificações escolhidas.</p>'}
-<footer class="small muted">Publicado a ${when}</footer></body></html>`;
+${bar}${body || '<p>Sem resultados nas classificações escolhidas.</p>'}<p id="xmsg" class="muted">Sem barcos desta subclasse nesta classificação.</p>
+<footer class="small muted">Publicado a ${when}</footer><script>${js}</script></body></html>`;
 }
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copiado.'); } catch (_) { dialog('Copiar', `<textarea rows="14" style="width:100%;font-family:monospace;font-size:12px">${esc(text)}</textarea>`); } }
 
