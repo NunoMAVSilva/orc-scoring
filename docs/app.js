@@ -166,7 +166,7 @@ async function init() {
   document.addEventListener('click', onClick);
   render();
   const timer = setTimeout(() => { if (!S.ready) $('#view').innerHTML = '<div class="warn">Não foi possível ligar à base de dados ainda. Verifique a ligação; os dados aparecem assim que houver resposta.</div>'; }, 10000);
-  if (STATIC) return loadStatic(timer);
+  if (STATIC) { const nf = document.querySelector('#nav a[data-r="frota"]'); if (nf && nf.lastChild) nf.lastChild.textContent = 'Inscritos'; return loadStatic(timer); }
   try { DB = await window.claude.use('db'); } catch (_) { DB = null; }
   if (!DB) { clearTimeout(timer); $('#view').innerHTML = '<div class="warn">Esta vista não tem acesso à base de dados. Abra a app em claude.ai com sessão iniciada.</div>'; return; }
   const user = await window.claude.use('user').catch(() => null);
@@ -432,6 +432,8 @@ function drawFinishEditor() {
 
 /* ---------- frota: barcos, skippers, clubes ---------- */
 function viewFleet() {
+  // site público: só a lista de inscritos do campeonato escolhido (geral e por prova)
+  if (STATIC) { S.fleetTab = 'champ'; return viewFleetEntries(''); }
   const cid = S.ctx ? ctxId() : null, entered = cid ? champEntries(cid).filter(id => S.boats[id]) : [];
   const tabs = [['champ', 'Inscritos', entered.length], ['boats', 'Base de dados', Object.keys(S.boats).length], ['skippers', 'Skippers', Object.keys(S.skippers).length], ['clubs', 'Clubes', Object.keys(S.clubs).length]];
   const t = S.fleetTab;
@@ -475,7 +477,7 @@ function viewFleet() {
 function entryRow(id, eid, rules, racedIds, day) {
   const b = S.boats[id];
   const del = !(eid ? canEditEv(eid) : S.canEdit) ? (S.canEdit ? '<td></td>' : '') : `<td>${eid ? (racedIds.has(id) ? '<span class="small muted" title="Tem resultados nesta prova">—</span>' : `<button class="x btn sm dang" data-a="entryDel" data-e="${esc(eid)}" data-id="${esc(id)}" aria-label="Retirar ${esc(b.name)}" title="Retirar da prova">×</button>`) : `<button class="btn sm dang" data-a="unenroll" data-id="${esc(id)}">Retirar</button>`}</td>`;
-  return `<tr><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span><span class="sub">${(() => { const sk = skipperIn(id, eid), own = eid && sk !== b.skipperId; return `${esc(skipperName(sk) || 'sem skipper')}${own ? ' <span class="chip" title="Skipper só nesta prova">nesta prova</span>' : ''}${clubShort(b.clubId) ? ' · ' + esc(clubShort(b.clubId)) : ''}${canEditEv(eid) ? ` <button class="btn sm" data-a="entSkip" data-e="${esc(eid)}" data-id="${esc(id)}" title="Mudar o skipper nesta prova" style="padding:0 6px">✎</button>` : ''}`; })()}</span></td><td>${E.certAt(b, day, dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td>${del}</tr>`;
+  return `<tr><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, modelCase(b.type)].filter(Boolean).join(' · '))}</span><span class="sub">${(() => { const sk = skipperIn(id, eid), own = eid && sk !== b.skipperId; return `${esc(skipperName(sk) || 'sem skipper')}${own ? ' <span class="chip" title="Skipper só nesta prova">nesta prova</span>' : ''}${clubShort(b.clubId) ? ' · ' + esc(clubShort(b.clubId)) : ''}${canEditEv(eid) ? ` <button class="btn sm" data-a="entSkip" data-e="${esc(eid)}" data-id="${esc(id)}" title="Mudar o skipper nesta prova" style="padding:0 6px">✎</button>` : ''}`; })()}</span></td><td>${E.certAt(b, day, dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td>${del}</tr>`;
 }
 function viewFleetEntries(head) {
   if (!S.ctx) return `<section><h1>Frota</h1></section>${head}<div class="empty">Escolha ou crie um campeonato no topo.</div>`;
@@ -503,8 +505,8 @@ function viewFleetEntries(head) {
       ${eid && ids.length ? `<button class="btn sm dang" data-a="entryDelAll" data-e="${esc(eid)}">Retirar todos</button>` : ''}</div>
     <div class="small muted">Excel/CSV: títulos Barco, Vela, Modelo, Skipper, Licença, Clube (só "Barco" é obrigatório). PDF ou foto da lista: lido com o Claude — confirme na pré-visualização.</div>`;
   const evTabs = evs.length > 1 ? `<div class="tabs">${evs.map(([k, e]) => `<button data-a="fleetEv" data-k="${esc(k)}" class="${S.fleetEv === k ? 'on' : ''}">${esc(e.name)} (${(e.entries || []).length})</button>`).join('')}<button data-a="fleetEv" data-k="all" class="${S.fleetEv === 'all' ? 'on' : ''}">Todas (${champEntries(cid).length})</button></div>` : '';
-  const noCert = missing.length;
-  return `<section><h1>Frota</h1><div class="muted">${esc(c.name)}${ev && !single ? ' · ' + esc(ev.name) : ''} · ${ids.length} inscritos${noCert ? ` · <span style="color:var(--flag-r)">${noCert} sem certificado</span>` : ''}</div></section>
+  const noCert = STATIC ? 0 : missing.length;
+  return `<section><h1>${STATIC ? 'Inscritos' : 'Frota'}</h1><div class="muted">${esc(c.name)}${ev && !single ? ' · ' + esc(ev.name) : ''} · ${ids.length} inscritos${noCert ? ` · <span style="color:var(--flag-r)">${noCert} sem certificado</span>` : ''}</div></section>
     ${head}${evTabs}${noCert ? `<div class="warn row spread" style="align-items:center"><b>⚠ ${noCert} barco${noCert > 1 ? 's' : ''} sem certificado</b><div class="row">${S.fleetNoCert ? '<button class="btn sm" data-a="noCertFilter">Mostrar todos</button>' : '<button class="btn sm" data-a="noCertFilter">Ver só esses</button>'}${S.canEdit ? `<button class="btn sm pri" data-a="certQueue" data-ids="${esc(missing.join(','))}">Resolver um a um</button>` : ''}</div></div>` : ''}${actions}
     <input id="fleetQ" value="${esc(S.fleetQ || '')}" placeholder="Procurar inscrito" style="padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface)">
     ${shown.length ? `<div class="scroll"><table><thead><tr><th>Barco · skipper · clube</th><th>Cert.</th>${S.canEdit ? '<th></th>' : ''}</tr></thead><tbody>${shown.map(id => entryRow(id, eid, rules, racedIds, day)).join('')}</tbody></table></div>`
