@@ -68,7 +68,7 @@ function divOf(b, rules) { rules = rules || ctxRules(); return isOpen(b, rules) 
 function allGroupsOf(rules) {
   const g = [{ k: 'GERAL', t: 'Geral' }];
   if (rules && rules.openGroup) g.push({ k: 'ORC', t: 'Geral ORC' }, { k: 'OPEN', t: 'Geral ORC Open', sub: true });
-  if (rules && rules.abcGroup) g.push({ k: 'ABC', t: 'Geral A+B+C (sem Sportboats)', sub: true });
+  if (rules && rules.abcGroup) g.push({ k: 'ABC', t: 'Geral ORC Cruzeiros', sub: true });
   ((rules && rules.groups) || DEFAULT_RULES.groups).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d, sub: true }));
   ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name, sub: true }));
   return g;
@@ -514,7 +514,7 @@ function rulesFields(r) {
     ${field('cA', 'Divisão A: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).A, 'inputmode="decimal"')}${field('cB', 'Divisão B: CDL ≥', (r.divLimits || DEFAULT_RULES.divLimits).B, 'inputmode="decimal"')}
     ${field('cMin', 'Mínimo de barcos para abrir subclasse', r.minBoats || '', 'inputmode="numeric" placeholder="sem mínimo"')}</div>
     <div class="small muted">Subclasses a classificar:</div><div class="row">${['A', 'B', 'C', 'SB'].concat((r.groups || []).filter(d => !['A', 'B', 'C', 'SB'].includes(d))).map(d => `<label class="row small"><input type="checkbox" class="cDiv" value="${esc(d)}" ${(r.groups || []).includes(d) ? 'checked' : ''}> ${d === 'SB' ? 'Sportboats (SB)' : 'ORC ' + esc(d)}</label>`).join('')}</div>
-    <label class="row small" style="margin-top:4px;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="cABC" ${r.abcGroup ? 'checked' : ''}> <span><b>Geral A+B+C</b> — classificação conjunta das subclasses A, B e C, sem os Sportboats</span></label>
+    <label class="row small" style="margin-top:4px;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="cABC" ${r.abcGroup ? 'checked' : ''}> <span><b>Geral ORC Cruzeiros</b> — classificação conjunta das subclasses A, B e C (sem os Sportboats)</span></label>
     <label class="row small" style="margin-top:4px;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="cOpen" ${r.openGroup ? 'checked' : ''}> <span><b>ORC Open</b> — barcos sem certificado ORC próprio válido para o ano do evento (copiado, derivado, manual ou de outro ano) saem das divisões e formam o grupo ORC Open</span></label>
     <div class="small muted">Classificações por classe (monotipias):</div><div class="row">${Object.entries(S.classes).map(([k, cl]) => `<label class="row small"><input type="checkbox" class="cCls" value="${esc(k)}" ${(r.classGroups || []).includes(k) ? 'checked' : ''}> ${esc(cl.name)}</label>`).join('') || '<span class="small muted">Sem classes definidas.</span>'}</div>`;
 }
@@ -821,7 +821,11 @@ function exportHTML() {
   });
   const usedG = gs.filter(g => secs.some(x => x.g === g.k));
   const bar = (cols.length > 1 || usedG.length > 1) ? `<div class="xbar">${cols.length > 1 ? `<div class="tabs xc">${cols.map(([k, t]) => `<button type="button" data-c="${esc(k)}">${esc(t)}</button>`).join('')}</div>` : ''}${usedG.length > 1 ? `<div class="tabs xg">${usedG.map(g => `<button type="button" data-g="${esc(g.k)}">${esc(g.t)}</button>`).join('')}</div>` : ''}</div>` : '';
-  const body = secs.map(x => `<section class="xb" data-c="${esc(x.c)}" data-g="${esc(x.g)}">${x.html}</section>`).join('');
+  // logótipos dos clubes: cada imagem vai uma só vez (no CSS) em vez de em cada linha — ficheiro leve (abre no iPhone)
+  const logos = [];
+  const body = secs.map(x => `<section class="xb" data-c="${esc(x.c)}" data-g="${esc(x.g)}">${x.html}</section>`).join('')
+    .replace(/<img class="clogo( big)?" src="(data:[^"]+)" alt="" title="([^"]*)">/g, (m, big, src, t) => { let i = logos.indexOf(src); if (i < 0) i = logos.push(src) - 1; return `<span class="clogo${big || ''} lg${i}" title="${t}"></span>`; });
+  const logoCss = logos.map((u, i) => `.lg${i}{background:#fff url("${u}") center/contain no-repeat}`).join('\n');
   const nd = sc.kind === 'race' ? 0 : expSeries(sc, 'GERAL').st.nDiscards, now = new Date();
   const club = (S.clubs[(sc.kind === 'event' && S.events[sc.id].clubId) || rules.clubId] || {}).name || '';
   const css = Array.from(document.styleSheets).map(x => { try { return Array.from(x.cssRules).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
@@ -834,7 +838,8 @@ d.getElementById('xmsg').style.display=n?'none':'block';}
 d.addEventListener('click',function(e){var b=e.target.closest('.xbar button');if(!b)return;if(b.hasAttribute('data-c'))s.c=b.getAttribute('data-c');else s.g=b.getAttribute('data-g');show();});show();})();`;
   return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(sc.title)}</title><style>${css} body{padding:16px} .sticky{position:static} .exp-head{margin-bottom:12px} .exp-head .club{font-size:1.05rem;color:var(--muted);margin-top:2px} h2{margin-top:22px} footer{margin-top:24px;padding-top:10px;border-top:1px solid var(--line)}
 .xbar{display:none;position:sticky;top:0;z-index:5;background:var(--bg,#fff);padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:6px} .xbar .tabs{margin:4px 0} html.js .xbar{display:block} html.js .xb{display:none} html.js .xb.on{display:block} .xb h2{margin-top:14px} #xmsg{display:none}
-@media print{html.js .xb,.xb{display:block!important;break-inside:avoid-page} .xbar,#xmsg{display:none!important}}</style></head><body>
+@media print{html.js .xb,.xb{display:block!important;break-inside:avoid-page} .xbar,#xmsg{display:none!important}}
+${logoCss}</style></head><body>
 <div class="exp-head"><h1>${esc(sc.title)}</h1>${sc.sub && sc.sub !== sc.title ? `<div class="club">${esc(sc.sub)}</div>` : ''}${club ? `<div class="club">${esc(club)}</div>` : ''}${info}</div>
 ${bar}${body || '<p>Sem resultados nas classificações escolhidas.</p>'}<p id="xmsg" class="muted">Sem barcos desta subclasse nesta classificação.</p>
 <footer class="small muted">Publicado a ${when}</footer><script>${js}</script></body></html>`;
