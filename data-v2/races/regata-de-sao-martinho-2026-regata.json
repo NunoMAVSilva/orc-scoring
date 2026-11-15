@@ -1,0 +1,60 @@
+{
+  "date": "2026-11-07",
+  "distance": null,
+  "event": "regata-de-sao-martinho-2026",
+  "finishes": [
+    {
+      "boatId": "paquito",
+      "finish": "13:43:58"
+    },
+    {
+      "boatId": "tita",
+      "finish": "13:44:12"
+    },
+    {
+      "boatId": "too-much",
+      "finish": "13:45:51"
+    },
+    {
+      "boatId": "troton",
+      "finish": "13:46:56"
+    },
+    {
+      "boatId": "impulsive",
+      "finish": "13:47:41"
+    },
+    {
+      "boatId": "choque",
+      "finish": "13:48:10"
+    },
+    {
+      "boatId": "brizo",
+      "finish": "13:54:27"
+    },
+    {
+      "boatId": "javali-sailing",
+      "finish": "14:06:02"
+    },
+    {
+      "boatId": "sambuca",
+      "finish": "14:08:17"
+    },
+    {
+      "boatId": "corto-maltese",
+      "finish": "14:35:06"
+    },
+    {
+      "boatId": "luna",
+      "finish": "14:46:26"
+    }
+  ],
+  "name": "",
+  "photos": [
+    "ad996e721b0e33e7f29948a521b9f742"
+  ],
+  "start": "11:41:00",
+  "status": "final",
+  "system": "ToT_CL",
+  "timeLimit": "",
+  "timeLimitDur": "04:30:00"
+}

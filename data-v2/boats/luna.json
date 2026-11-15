@@ -1,0 +1,28 @@
+{
+  "aka": [],
+  "certs": [
+    {
+      "CDL": 5.724,
+      "GPH": 774.5,
+      "LOA": 7.2,
+      "ToD_CL": 751.7,
+      "ToD_WL": 843.3,
+      "ToT_CL": 0.7982,
+      "ToT_WL": 0.7115,
+      "displacement": 1569,
+      "from": "2021-01-01",
+      "kind": "orc",
+      "ref": "0345000111P",
+      "spinnakers": 4,
+      "src": "LUNA · ORC Club 2021 (Mallard Start 7) · cert. 2021 · recomendado",
+      "year": 2021
+    }
+  ],
+  "clubId": "gcnfaro",
+  "div": "",
+  "name": "LUNA",
+  "note": "",
+  "sail": "",
+  "skipperId": "sergio-cardoso",
+  "type": "Mallard Start 7"
+}

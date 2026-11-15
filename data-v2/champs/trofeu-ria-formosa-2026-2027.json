@@ -1,0 +1,37 @@
+{
+  "abcGroup": true,
+  "classGroups": [
+    "platu25"
+  ],
+  "clubId": "gcnfaro",
+  "dateFrom": "2026-11-07",
+  "dateTo": "2027-09-04",
+  "discards": [
+    {
+      "n": 0,
+      "upTo": 3
+    },
+    {
+      "n": 1,
+      "upTo": 8
+    },
+    {
+      "n": 2,
+      "upTo": 999
+    }
+  ],
+  "divLimits": {
+    "A": 9.9,
+    "B": 8.8
+  },
+  "groups": [
+    "A",
+    "B",
+    "C",
+    "SB"
+  ],
+  "minBoats": 0,
+  "name": "Troféu Ria Formosa 2026/2027",
+  "openGroup": false,
+  "season": ""
+}
