@@ -66,11 +66,14 @@ function divOf(b, rules) { rules = rules || ctxRules(); return isOpen(b, rules) 
 /* Grupos de classificação do campeonato. Subclasses (divisões, A+B+C, ORC Open, monotipias) só abrem
    com pelo menos rules.minBoats barcos inscritos no campeonato; as que não abrem não são publicadas. */
 function allGroupsOf(rules) {
-  const g = [{ k: 'GERAL', t: 'Geral' }];
-  if (rules && rules.openGroup) g.push({ k: 'ORC', t: 'Geral ORC' }, { k: 'OPEN', t: 'Geral ORC Open', sub: true });
+  // ordem: Class. Geral · (Geral ORC) · Cruzeiros · Sportboats · ORC Open · Div. A/B/C · monotipias
+  const g = [{ k: 'GERAL', t: 'Class. Geral' }], divs = (rules && rules.groups) || DEFAULT_RULES.groups;
+  if (rules && rules.openGroup) g.push({ k: 'ORC', t: 'Geral ORC' });
   if (rules && rules.abcGroup) g.push({ k: 'ABC', t: 'Geral ORC Cruzeiros', sub: true });
-  ((rules && rules.groups) || DEFAULT_RULES.groups).forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d, sub: true }));
-  ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: S.classes[cl].name, sub: true }));
+  if (divs.includes('SB')) g.push({ k: 'DIV:SB', t: 'Geral ORC Sportboats', sub: true });
+  if (rules && rules.openGroup) g.push({ k: 'OPEN', t: 'Geral ORC Open', sub: true });
+  divs.filter(d => d !== 'SB').forEach(d => g.push({ k: 'DIV:' + d, t: 'Div. ' + d, sub: true }));
+  ((rules && rules.classGroups) || []).forEach(cl => S.classes[cl] && g.push({ k: 'CLS:' + cl, t: modelCase(S.classes[cl].name), sub: true }));
   return g;
 }
 function champBoatsOf(rules) {
@@ -131,7 +134,18 @@ async function logoDataUrl(file) {
   cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
   return cv.toDataURL('image/png');
 }
-function boatSub(b) { return [b.sail, b.type, clubShort(b.clubId)].filter(Boolean).join(' · '); }
+/* Nome do barco em MAIÚSCULAS; modelo com a 1.ª letra de cada palavra em maiúscula
+   (mantém siglas como OD, GL, JOD e palavras com números como FB35, X-35, 36i, 40R) */
+const MODEL_CAPS = ['OD', 'GL', 'JOD', 'DS', 'RS', 'CR', 'SB', 'ORC', 'II', 'III', 'IV', 'XL', 'LX', 'GT', 'SE', 'MK', 'IRC'];
+function modelCase(t) {
+  return String(t || '').trim().replace(/\s+/g, ' ').split(' ').map(w => {
+    if (/\d/.test(w)) return w === w.toLowerCase() ? w.toUpperCase().replace(/(\d)([A-Z])$/, (m, d, l) => d + l.toLowerCase()) : w;
+    if (MODEL_CAPS.includes(w.toUpperCase())) return w.toUpperCase();
+    return w.split('-').map(x => x ? x[0].toLocaleUpperCase('pt-PT') + x.slice(1).toLocaleLowerCase('pt-PT') : x).join('-');
+  }).join(' ');
+}
+const boatCase = n => String(n || '').trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-PT');
+function boatSub(b) { return [b.sail, modelCase(b.type), clubShort(b.clubId)].filter(Boolean).join(' · '); }
 function divChip(b, rules) { const d = divOf(b, rules); return `<span class="chip div-${esc(d)}">${d === 'OPEN' ? 'Open' : esc(d)}</span>`; }
 function evDates(e) { return e.dateFrom && e.dateTo && e.dateTo !== e.dateFrom ? `${dPT(e.dateFrom)} a ${dPT(e.dateTo)}` : dPT(e.dateFrom); }
 
@@ -263,7 +277,7 @@ function raceTable(race, rules, rows, pending, opts) {
   const sk = b => opts.skipper && skipperName(skipperIn(b._id, race.event)) ? ' · ' + skipperName(skipperIn(b._id, race.event)) : '';
   const tr = rows.map(x => {
     const b = Object.assign({ _id: x.boatId }, S.boats[x.boatId] || {});
-    const boatSub = bb => [bb.sail, bb.type, clubShort(bb.clubId)].filter(Boolean).join(' · ') + sk(bb);
+    const boatSub = bb => [bb.sail, modelCase(bb.type), clubShort(bb.clubId)].filter(Boolean).join(' · ') + sk(bb);
     if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a ${pendingWhat})</td></tr>`;
     if (x.code) return `<tr><td class="pos">—</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
     return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
@@ -1060,7 +1074,7 @@ async function onClick(e) {
     }
     const pick = (document.querySelector('input[name=certPick]:checked') || {}).value || 'none';
     const b = id ? clone(S.boats[id]) : { certs: [] };
-    Object.assign(b, { name: v('bName').toUpperCase(), sail: v('bSail'), type: v('bType'), clubId: v('bClub'), skipperId, aka: v('bAka') ? v('bAka').split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [], div: v('bDiv'), note: $('#bNote').value.trim() });
+    Object.assign(b, { name: boatCase(v('bName')), sail: v('bSail'), type: modelCase(v('bType')), clubId: v('bClub'), skipperId, aka: v('bAka') ? v('bAka').split(',').map(s => s.trim().toUpperCase()).filter(Boolean) : [], div: v('bDiv'), note: $('#bNote').value.trim() });
     if (v('bCls')) b.classRef = v('bCls'); else delete b.classRef;
     if (pick !== 'none' && !b.classRef) {
       const [kind, ref] = [pick.slice(0, pick.indexOf(':')), pick.slice(pick.indexOf(':') + 1)];
@@ -1245,7 +1259,7 @@ async function doImport() {
     if (!bid) {
       bid = uniqueId('boats', slug(x.name));
       const r = x.cert && S.catalog.rows.find(c => c[10] === x.cert);
-      const b = { name: x.name.toUpperCase(), sail: x.sail, type: x.type, clubId, skipperId, aka: [], div: '', note: '', certs: r ? [catCert(r, 'orc')] : [] };
+      const b = { name: boatCase(x.name), sail: x.sail, type: modelCase(x.type), clubId, skipperId, aka: [], div: '', note: '', certs: r ? [catCert(r, 'orc')] : [] };
       if (!await save('boats', bid, b)) return;
     }
     ids.push(bid);
