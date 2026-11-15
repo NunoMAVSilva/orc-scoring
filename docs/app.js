@@ -374,17 +374,25 @@ function viewRace(id) {
   const pendingWhat = pending === 'distância' ? 'distância' : 'largada';
   const isToD = race.system.startsWith('ToD');
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
+  // separadores da regata: Classificação | Chegadas (registo por ordem de chegada + folha/fotos)
+  const finTab = canEditEv(race.event) || !!photos || (race.finishes || []).length > 0;
+  const st0 = E.secs(race.start);
+  const finList = (race.finishes || []).map(f => ({ f, s: E.secs(f.finish) })).sort((x, y) => (x.s == null) - (y.s == null) || (x.s - y.s)).map((x, i) => { const b = S.boats[x.f.boatId] || { name: x.f.boatId }; const el = x.s != null && st0 != null ? x.s + 86400 * (x.f.dayOffset || 0) - st0 : null; return `<tr><td class="pos">${x.s != null ? i + 1 : '—'}</td><td class="boat">${clubIcon(b.clubId)}${esc(b.name)}</td><td class="n">${esc(x.f.finish || '')}${x.f.code && x.f.code !== 'FIN' ? ' <span class="code">' + esc(x.f.code) + '</span>' : ''}</td><td class="n">${el != null ? E.hms2(el) : ''}</td></tr>`; }).join('');
   return `<section class="row spread"><div><div class="small muted"><a href="#${champEvents(ev.champ).length > 1 ? 'prova-' + esc(race.event) : 'regatas'}">${champEvents(ev.champ).length > 1 ? esc(ev.name || 'Prova') : 'Regatas'}</a> · R${idx}</div><h1>${esc(raceTitle(race))}</h1></div>
       <div class="row"><span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span>${canEditEv(race.event) ? `<button class="btn sm" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : isLocked(race.event) ? '<span class="chip">🔒 fechada</span>' : ''}</div></section>
     <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${race.start ? esc(race.start.slice(0, 5)) : '—'}</b><span>${race.start ? 'largada' : 'largada por ler'}</span></div>
       <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimitDur ? `<div class="kpi"><b>${esc(race.timeLimitDur.slice(0, 5))}</b><span>tempo limite</span></div>` : race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
+    ${finTab ? `<div class="tabs rtabs"><button data-a="rtab" data-k="class" class="${S.raceTab !== 'fin' ? 'on' : ''}">Classificação</button><button data-a="rtab" data-k="fin" class="${S.raceTab === 'fin' ? 'on' : ''}">Chegadas${photos ? ' e folha' : ''}</button></div>` : ''}
+    ${S.raceTab === 'fin' && finTab ? `
+    <div class="card"><div class="row spread"><h3>Chegadas registadas</h3>${canEditEv(race.event) ? `<button class="btn sm pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button>` : ''}</div>
+      <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th></tr></thead><tbody>${finList || '<tr><td colspan="4" class="empty">Ainda sem chegadas.</td></tr>'}</tbody></table></div></div>
+    ${canEditEv(race.event) || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${canEditEv(race.event) ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
+      ${canEditEv(race.event) && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}` : `
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     <div class="scroll">${raceTable(race, rules, rows, pending)}</div>
     <p class="small muted">Siglas (DNF, DNS, RET…) = inscritos na prova + 1 (RRS A5.2). Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.ratingDate || race.date)}${race.ratingDate && race.ratingDate !== race.date ? ' (1.º dia da prova)' : ''}; toque no valor para ver a origem.</p>
-    <div class="row">${canEditEv(race.event) ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button><button class="btn" data-a="export" data-k="race" data-id="${esc(id)}">Exportar</button></div>
-    ${canEditEv(race.event) || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${canEditEv(race.event) ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
-      ${canEditEv(race.event) && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
+    <div class="row"><button class="btn" data-a="export" data-k="race" data-id="${esc(id)}">Exportar</button></div>`}`;
 }
 
 /* ---------- editor de chegadas ---------- */
@@ -924,6 +932,7 @@ async function onClick(e) {
   }
   if (a === 'grp') { S.group = t.dataset.k; render(); }
   else if (a === 'rgrp') { S.raceGroup = t.dataset.k; render(); }
+  else if (a === 'rtab') { S.raceTab = t.dataset.k; render(); }
   else if (a === 'egrp') { S.evGroup = t.dataset.k; render(); }
   else if (a === 'fleetTab') { S.fleetTab = t.dataset.k; render(); }
   else if (a === 'fleetGo') { S.fleetTab = 'champ'; location.hash = 'frota'; render(); }
@@ -1149,10 +1158,6 @@ async function onClick(e) {
     if (rc.ToT_WL) c.ToT_WL = r4(rc.ToT_WL * f);
     if (rc.GPH) c.GPH = Math.round(rc.GPH / f * 10) / 10;
     addCert(t.dataset.b, c);
-  }
-  else if (a === 'copyRace') {
-    const race = withEnt(id, S.races[id]); const { rows } = E.raceResults(race, dbState());
-    copy(`${raceTitle(race)} — ${dPT(race.date)} (${E.SYSTEMS[race.system]})\n` + rows.map(x => x.code ? `-  ${x.name}  ${x.code}  ${ptsF(x.pts)} pts` : `${x.pos}. ${x.name}  ${E.hms2(x.elapsed)}  corr ${E.hms2(x.corrected)}  +${E.hms(x.delta)}`).join('\n'));
   }
   else if (a === 'export') openExport(t.dataset.k || 'champ', id);
   else if (a === 'expAll') document.querySelectorAll('.expG').forEach(x => { x.checked = t.dataset.v === '1'; });
