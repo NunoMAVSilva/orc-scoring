@@ -255,6 +255,22 @@ function eventStandings(eid, groupKey) {
   const opts = single ? { champ: rules } : { discards: 0 };
   return { rs, rules, st: E.seriesStandings(rs, dbState(), Object.assign(opts, { filter: groupFilter(groupKey, rules), boats: e.entries || [] })) };
 }
+/* tabela de resultados de uma regata (ecrã e exportação) */
+function raceTable(race, rules, rows, pending, opts) {
+  opts = opts || {};
+  const pendingWhat = pending === 'distância' ? 'distância' : 'largada';
+  const isToD = race.system.startsWith('ToD');
+  const sk = b => opts.skipper && skipperName(skipperIn(b._id, race.event)) ? ' · ' + skipperName(skipperIn(b._id, race.event)) : '';
+  const tr = rows.map(x => {
+    const b = Object.assign({ _id: x.boatId }, S.boats[x.boatId] || {});
+    const boatSub = bb => [bb.sail, bb.type, clubShort(bb.clubId)].filter(Boolean).join(' · ') + sk(bb);
+    if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a ${pendingWhat})</td></tr>`;
+    if (x.code) return `<tr><td class="pos">—</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
+    return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
+      <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
+  }).join('');
+  return `<table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table>`;
+}
 function standingsTable(st, races, rules, opts) {
   opts = opts || {};
   if (!st.table.length || !races.length) return '<div class="empty">Sem resultados ainda.</div>';
@@ -322,7 +338,7 @@ function viewEvent(eid, single) {
   return `${head}${lockBar}
     <div class="card"><div class="row spread"><h3>Regatas</h3>${canEditEv(eid) ? `<button class="btn sm pri" data-a="newRace" data-e="${esc(eid)}">+ Nova regata</button>` : ''}</div>
       <div class="list">${raceItems || '<div class="small muted">Ainda sem regatas.</div>'}</div></div>
-    ${single ? '' : `<div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
+    ${single ? '' : `<div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="row small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}<button class="btn sm" data-a="export" data-k="event" data-id="${esc(eid)}">Exportar</button></span></div>
       <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>${closedNote(rules)}
       ${standingsTable(st, rs, rules)}</div>`}
     <div class="small muted">${entries.length} inscritos${entries.length ? '' : ' — '}${entries.length ? ' · ' : ''}<a href="#frota" data-a="fleetGo">${S.canEdit ? 'gerir inscrições na Frota' : 'ver na Frota'}</a></div>
@@ -343,13 +359,6 @@ function viewRace(id) {
   const { rows, pending } = E.raceResults(race, dbState(), groupFilter(S.raceGroup, rules));
   const pendingWhat = pending === 'distância' ? 'distância' : 'largada';
   const isToD = race.system.startsWith('ToD');
-  const tr = rows.map(x => {
-    const b = S.boats[x.boatId] || {};
-    if (x.pending) return `<tr><td class="pos">·</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td><td class="n">${esc(x.code || x.finish || '')}</td><td class="n muted" colspan="5">por calcular (falta a ${pendingWhat})</td></tr>`;
-    if (x.code) return `<tr><td class="pos">—</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(x.note || boatSub(b))}</span></td><td class="code" colspan="5">${esc(x.code)}${x.finish ? ' · ' + esc(x.finish) : ''}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
-    return `<tr class="podium-${x.pos}"><td class="pos">${x.pos}</td><td class="boat">${clubIcon(b.clubId)}${esc(x.name)} ${divChip(b, rules)}<span class="sub">${esc(boatSub(b))}</span></td>
-      <td class="n">${esc(x.finish)}</td><td class="n">${E.hms2(x.elapsed)}</td><td class="n" title="${esc(x.certSrc)}">${isToD ? fmt1(x.rating) : fmt4(x.rating)}</td><td class="n">${E.hms2(x.corrected)}</td><td class="n">${x.delta ? '+' + E.hms(x.delta) : '—'}</td><td class="n">${ptsF(x.pts)}</td></tr>`;
-  }).join('');
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
   return `<section class="row spread"><div><div class="small muted"><a href="#${champEvents(ev.champ).length > 1 ? 'prova-' + esc(race.event) : 'regatas'}">${champEvents(ev.champ).length > 1 ? esc(ev.name || 'Prova') : 'Regatas'}</a> · R${idx}</div><h1>${esc(raceTitle(race))}</h1></div>
       <div class="row"><span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span>${canEditEv(race.event) ? `<button class="btn sm" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : isLocked(race.event) ? '<span class="chip">🔒 fechada</span>' : ''}</div></section>
@@ -357,9 +366,9 @@ function viewRace(id) {
       <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimitDur ? `<div class="kpi"><b>${esc(race.timeLimitDur.slice(0, 5))}</b><span>tempo limite</span></div>` : race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
-    <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table></div>
+    <div class="scroll">${raceTable(race, rules, rows, pending)}</div>
     <p class="small muted">Siglas (DNF, DNS, RET…) = inscritos na prova + 1 (RRS A5.2). Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.ratingDate || race.date)}${race.ratingDate && race.ratingDate !== race.date ? ' (1.º dia da prova)' : ''}; toque no valor para ver a origem.</p>
-    <div class="row">${canEditEv(race.event) ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
+    <div class="row">${canEditEv(race.event) ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button><button class="btn" data-a="export" data-k="race" data-id="${esc(id)}">Exportar</button></div>
     ${canEditEv(race.event) || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${canEditEv(race.event) ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
       ${canEditEv(race.event) && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
 }
@@ -745,10 +754,6 @@ async function shrink(file) {
 }
 
 /* ---------- exportação ---------- */
-function ctxSeries(groupKey) {
-  const cid = ctxId(), c = S.champs[cid], rs = champRaces(cid).filter(E.isScored);
-  return { rs, rules: c, st: E.seriesStandings(rs, dbState(), { champ: c, filter: groupFilter(groupKey, c), boats: champEntries(cid) }) };
-}
 function ctxName() { return S.champs[ctxId()].name; }
 function standingsText(st, races, title) {
   let t = title + '\n' + '#  Barco'.padEnd(22) + 'Líq  Tot  ' + races.map((r, i) => 'R' + (i + 1)).join(' ') + '\n';
@@ -762,17 +767,61 @@ function penaltyNote(st, rs, groupKey, rules) {
     ? `Penalizações (DNC, DNF, DNS, DSQ…): ${st.dnc} pontos`
     : `DNC: ${st.dnc} pontos · DNF, DNS, DSQ…: inscritos da prova + 1${per.length === 1 ? ` (${per[0]} pontos)` : ''}`;
 }
-function standingsHTML() {
-  const rules = ctxRules();
-  const blocks = groupsOf(rules).map(g => { const { st, rs } = ctxSeries(g.k); return st.table.length ? `<h2>${esc(g.t)}</h2>${standingsTable(st, rs, rules, { skipper: true }).replace(/<a [^>]*>|<\/a>/g, '')}<p class="small muted">${penaltyNote(st, rs, g.k, rules)}</p>` : ''; }).join('');
-  const nd = E.nDiscards(rules, ctxSeries('GERAL').rs.length), now = new Date();
-  const club = (S.clubs[rules.clubId] || {}).name || '';
-  const css = Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
-  const n = ctxSeries('GERAL').rs.length;
+/* ---------- exportar: campeonato, prova ou regata, com escolha das subclasses ---------- */
+function expScope(kind, id) {
+  if (kind === 'race') { const race = withEnt(id, S.races[id]), ev = S.events[race.event] || {}; return { kind, id, race, rules: rulesOfRace(race), title: raceTitle(race), sub: (champEvents(ev.champ).length > 1 || race.name ? ev.name : (S.champs[ev.champ] || {}).name) || '', races: [race] }; }
+  if (kind === 'event') { const e = S.events[id]; return { kind, id, rules: rulesOfEvent(e), title: e.name, sub: (S.champs[e.champ] || {}).name || '', races: eventRaces(id) }; }
+  const cid = id || ctxId(), c = S.champs[cid]; return { kind: 'champ', id: cid, rules: c, title: c.name, sub: '', races: champRaces(cid) };
+}
+function expSeries(sc, k) {
+  if (sc.kind === 'event') return eventStandings(sc.id, k);
+  const c = S.champs[sc.id], rs = champRaces(sc.id).filter(E.isScored);
+  return { rs, rules: c, st: E.seriesStandings(rs, dbState(), { champ: c, filter: groupFilter(k, c), boats: champEntries(sc.id) }) };
+}
+function expRaceText(race, rules, k, label) {
+  const { rows } = E.raceResults(race, dbState(), groupFilter(k, rules));
+  return `${raceTitle(race)} — ${label} — ${dPT(race.date)} (${E.SYSTEMS[race.system]})\n` + rows.map(x => x.pending ? `·  ${x.name}  por calcular` : x.code ? `-  ${x.name}  ${x.code}  ${ptsF(x.pts)} pts` : `${x.pos}. ${x.name}  ${E.hms2(x.elapsed)}  corr ${E.hms2(x.corrected)}  ${ptsF(x.pts)} pts`).join('\n');
+}
+function openExport(kind, id) {
+  const sc = expScope(kind, id), gs = groupsOf(sc.rules);
+  const nScored = sc.races.filter(E.isScored).length;
+  S.exp = { kind, id };
+  dialog('Exportar · ' + sc.title, `<div class="small muted">Escolha as classificações a publicar. ${STATIC ? '' : 'O ficheiro HTML serve para imprimir, enviar ou publicar.'}</div>
+    <div class="row spread small"><b>Subclasses / classificações</b><span><a href="#" data-a="expAll" data-v="1">todas</a> · <a href="#" data-a="expAll" data-v="0">nenhuma</a></span></div>
+    <div class="list">${gs.map(g => `<label class="item" style="cursor:pointer"><input type="checkbox" class="expG" value="${esc(g.k)}" checked><div class="grow"><div class="title">${esc(g.t)}</div></div></label>`).join('')}</div>
+    ${kind !== 'race' ? `<label class="row small" style="flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="expRaces" ${kind === 'event' || champEvents(sc.id).length <= 1 ? 'checked' : ''}> <span>Incluir também os resultados de cada regata (${nScored} regata${nScored === 1 ? '' : 's'})</span></label>` : ''}
+    <div class="row"><button class="btn" data-a="expTxt">Copiar texto</button>${DOWN || STATIC ? '<button class="btn pri" data-a="expHtml">Descarregar HTML</button>' : ''}</div>`);
+}
+function expChoice() {
+  const ks = [...document.querySelectorAll('.expG:checked')].map(x => x.value), sc = expScope(S.exp.kind, S.exp.id);
+  const gs = groupsOf(sc.rules).filter(g => ks.includes(g.k));
+  return { sc, gs, races: S.exp.kind === 'race' || ($('#expRaces') && $('#expRaces').checked) };
+}
+function exportText() {
+  const { sc, gs, races } = expChoice(); const out = [];
+  if (sc.kind !== 'race') gs.forEach(g => { const { st, rs } = expSeries(sc, g.k); if (st.table.length) out.push(standingsText(st, rs, sc.title + ' — ' + g.t)); });
+  if (races) sc.races.filter(E.isScored).forEach(r => gs.forEach(g => out.push(expRaceText(r, sc.rules, g.k, g.t))));
+  return out.join('\n\n');
+}
+function exportHTML() {
+  const { sc, gs, races } = expChoice(), rules = sc.rules, scored = sc.races.filter(E.isScored);
+  let blocks = '';
+  if (sc.kind !== 'race') {
+    const tot = gs.map(g => { const { st, rs } = expSeries(sc, g.k); return st.table.length ? `<h3>${esc(g.t)}</h3>${standingsTable(st, rs, rules, { skipper: true }).replace(/<a [^>]*>|<\/a>/g, '')}<p class="small muted">${penaltyNote(st, rs, g.k, rules)}</p>` : ''; }).join('');
+    if (tot) blocks += `<h2>Classificação ${sc.kind === 'event' ? 'da prova' : 'geral'}</h2>${tot}`;
+  }
+  if (races) scored.forEach((r, i) => {
+    const per = gs.map(g => { const { rows, pending } = E.raceResults(r, dbState(), groupFilter(g.k, rules)); return rows.length ? `<h3>${esc(g.t)}</h3>${raceTable(r, rules, rows, pending, { skipper: true })}` : ''; }).join('');
+    if (per) blocks += `<h2>${sc.kind === 'race' ? '' : 'R' + (i + 1) + ' · '}${esc(raceTitle(r))}</h2><p class="small muted">${dPT(r.date)} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.start ? ' · largada ' + esc(r.start) : ''}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''} · ${r.status === 'final' ? 'Final' : 'Provisória'}</p>${per}`;
+  });
+  const nd = sc.kind === 'race' ? 0 : expSeries(sc, 'GERAL').st.nDiscards, now = new Date();
+  const club = (S.clubs[(sc.kind === 'event' && S.events[sc.id].clubId) || rules.clubId] || {}).name || '';
+  const css = Array.from(document.styleSheets).map(x => { try { return Array.from(x.cssRules).map(r => r.cssText).join('\n'); } catch (_) { return ''; } }).join('\n');
   const when = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} às ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(ctxName())}</title><style>${css} body{padding:16px} .sticky{position:static} .exp-head{margin-bottom:12px} .exp-head .club{font-size:1.05rem;color:var(--muted);margin-top:2px} footer{margin-top:24px;padding-top:10px;border-top:1px solid var(--line)}</style></head><body>
-<div class="exp-head"><h1>${esc(ctxName())}</h1>${club ? `<div class="club">${esc(club)}</div>` : ''}<p>${n} regata${n === 1 ? '' : 's'} · ${nd ? nd + ' descarte' + (nd > 1 ? 's' : '') : 'sem descartes'}</p></div>
-${blocks}
+  const info = sc.kind === 'race' ? '' : `<p>${scored.length} regata${scored.length === 1 ? '' : 's'}${sc.kind === 'champ' || champEvents((S.events[sc.id] || {}).champ).length <= 1 ? ' · ' + (nd ? nd + ' descarte' + (nd > 1 ? 's' : '') : 'sem descartes') : ' · soma sem descartes'}</p>`;
+  return `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(sc.title)}</title><style>${css} body{padding:16px} .sticky{position:static} .exp-head{margin-bottom:12px} .exp-head .club{font-size:1.05rem;color:var(--muted);margin-top:2px} h2{margin-top:22px} footer{margin-top:24px;padding-top:10px;border-top:1px solid var(--line)}</style></head><body>
+<div class="exp-head"><h1>${esc(sc.title)}</h1>${sc.sub && sc.sub !== sc.title ? `<div class="club">${esc(sc.sub)}</div>` : ''}${club ? `<div class="club">${esc(club)}</div>` : ''}${info}</div>
+${blocks || '<p>Sem resultados nas classificações escolhidas.</p>'}
 <footer class="small muted">Publicado a ${when}</footer></body></html>`;
 }
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copiado.'); } catch (_) { dialog('Copiar', `<textarea rows="14" style="width:100%;font-family:monospace;font-size:12px">${esc(text)}</textarea>`); } }
@@ -1071,14 +1120,14 @@ async function onClick(e) {
     const race = withEnt(id, S.races[id]); const { rows } = E.raceResults(race, dbState());
     copy(`${raceTitle(race)} — ${dPT(race.date)} (${E.SYSTEMS[race.system]})\n` + rows.map(x => x.code ? `-  ${x.name}  ${x.code}  ${ptsF(x.pts)} pts` : `${x.pos}. ${x.name}  ${E.hms2(x.elapsed)}  corr ${E.hms2(x.corrected)}  +${E.hms(x.delta)}`).join('\n'));
   }
-  else if (a === 'export') {
-    const rules = ctxRules(), g = groupsOf(rules).find(x => x.k === S.group) || { t: 'Geral' };
-    dialog('Exportar classificação', `<div class="small muted">Para enviar aos velejadores: ${STATIC ? 'partilhe o endereço deste site' : 'publique no site público'}, copie o texto ou descarregue um ficheiro HTML para imprimir ou publicar.</div>
-      <div class="row"><button class="btn" data-a="expTxt">Copiar texto (${esc(g.t)})</button>${DOWN || STATIC ? '<button class="btn pri" data-a="expHtml">Descarregar HTML completo</button>' : ''}</div>`);
+  else if (a === 'export') openExport(t.dataset.k || 'champ', id);
+  else if (a === 'expAll') document.querySelectorAll('.expG').forEach(x => { x.checked = t.dataset.v === '1'; });
+  else if (a === 'expTxt' || a === 'expHtml') {
+    if (!document.querySelector('.expG:checked')) { toast('Escolha pelo menos uma classificação.'); return; }
+    if (a === 'expTxt') { copy(exportText()); return; }
+    const sc = expScope(S.exp.kind, S.exp.id), name = slug(sc.title + (sc.kind === 'race' && sc.sub ? '-' + sc.sub : '')) + '.html', html = exportHTML();
+    if (STATIC) { downloadFile(name, html); closeDlg(); } else { try { await DOWN.save({ filename: name, data: html }); closeDlg(); } catch (_) { toast('Descarga cancelada.'); } }
   }
-  else if (a === 'expTxt') { const k = S.group === 'PROVAS' ? 'GERAL' : S.group; const { st, rs, rules } = ctxSeries(k); copy(standingsText(st, rs, ctxName() + ' — ' + (groupsOf(rules).find(g => g.k === k) || { t: 'Geral' }).t)); }
-  else if (a === 'expHtml' && STATIC) downloadFile(slug(ctxName()) + '.html', standingsHTML());
-  else if (a === 'expHtml') { try { await DOWN.save({ filename: slug(ctxName()) + '.html', data: standingsHTML() }); } catch (_) { toast('Descarga cancelada.'); } }
 }
 document.addEventListener('input', e => { if (e.target.id === 'fleetQ') { S.fleetQ = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#fleetQ'); q.focus(); q.setSelectionRange(pos, pos); } });
 /* ---------- importar inscritos ---------- */
