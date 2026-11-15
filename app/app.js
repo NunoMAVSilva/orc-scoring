@@ -38,7 +38,11 @@ function dbState() { return { boats: S.boats, classes: S.classes }; }
 /* ---------- modelo ---------- */
 const sortRaces = list => list.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 // regata com os inscritos da prova (para os pontos de penalização = inscritos + 1, RRS A5.2)
-function withEnt(id, r) { const ev = S.events[r.event] || {}; return Object.assign({ id }, r, { entrants: (ev.entries || []).slice(), ratingDate: ev.dateFrom && ev.dateFrom < r.date ? ev.dateFrom : r.date }); }
+function withEnt(id, r) { const ev = S.events[r.event] || {}; return Object.assign({ id }, r, { entrants: (ev.entries || []).slice(), ratingDate: ev.dateFrom && ev.dateFrom < r.date ? ev.dateFrom : r.date, frozen: ev.frozen || null }); }
+/* Prova fechada (resultados publicados): certificados congelados em event.frozen e edição bloqueada. */
+const isLocked = eid => !!(S.events[eid] && S.events[eid].locked);
+const canEditEv = eid => S.canEdit && !isLocked(eid);
+function lockedMsg() { toast('Prova fechada: resultados publicados não podem ser alterados. Use "Reabrir prova" se for mesmo necessário.'); }
 function eventRaces(eid) { return sortRaces(Object.entries(S.races).filter(([, r]) => r.event === eid).map(([id, r]) => withEnt(id, r))); }
 function champEvents(cid) { return Object.entries(S.events).filter(([, e]) => e.champ === cid).sort((a, b) => (a[1].dateFrom || '').localeCompare(b[1].dateFrom || '')); }
 function champRaces(cid) { return sortRaces(champEvents(cid).flatMap(([eid]) => eventRaces(eid))); }
@@ -58,7 +62,7 @@ function hasValidOrc(b, rules) {
   return !!c && VALID_ORC_KINDS.includes(c.kind || 'orc') && String(c.from || '').slice(0, 4) === year;
 }
 function isOpen(b, rules) { rules = rules || ctxRules(); return !!(rules && rules.openGroup) && !hasValidOrc(b, rules); }
-function divOf(b, rules) { rules = rules || ctxRules(); return isOpen(b, rules) ? 'OPEN' : E.divisionOf(b, '', dbState(), rules); }
+function divOf(b, rules) { rules = rules || ctxRules(); return isOpen(b, rules) ? 'OPEN' : E.divisionOf(b, (rules && rules.dateTo) || '', dbState(), rules); } // divisão pelos certificados em vigor no fim do campeonato
 function groupsOf(rules) {
   const g = [{ k: 'GERAL', t: 'Geral' }];
   if (rules && rules.openGroup) g.push({ k: 'ORC', t: 'Geral ORC' }, { k: 'OPEN', t: 'Geral ORC Open' });
@@ -276,7 +280,7 @@ function viewEvent(eid, single) {
     const n = (r.finishes || []).length, nf = (r.finishes || []).filter(f => !f.code || f.code === 'FIN').length;
     return `<a class="item" href="#race-${esc(r.id)}"><div class="idx">R${i + 1}</div><div class="grow"><div class="title">${esc(r.name)}</div>
       <div class="meta">${dPT(r.date)} · ${r.start ? 'largada ' + esc(r.start.slice(0, 5)) : 'largada por ler'} · ${esc(E.SYSTEMS[r.system] || r.system)}${r.distance ? ' · ' + esc(r.distance) + ' NM' : ''}</div>
-      <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span>${S.canEdit ? `<button class="btn sm" data-a="editRace" data-id="${esc(r.id)}">Editar</button>` : ''}</a>`;
+      <div class="meta">${nf} chegados de ${n}</div></div><span class="chip st-${r.status === 'final' ? 'final' : 'provisoria'}">${r.status === 'final' ? 'Final' : 'Provisória'}</span>${canEditEv(r.event) ? `<button class="btn sm" data-a="editRace" data-id="${esc(r.id)}">Editar</button>` : ''}</a>`;
   }).join('');
   const entries = (e.entries || []).filter(id => S.boats[id]).map(id => [id, S.boats[id]]).sort(byName);
   const tabs = groupsOf(rules);
@@ -286,10 +290,13 @@ function viewEvent(eid, single) {
   const head = single
     ? `<section><h1>Regatas</h1><div class="muted">${esc(champ ? champ.name : e.name)} · ${evDates(champ && champ.dateFrom ? champ : e)}${e.venue ? ' · ' + esc(e.venue) : ''}</div></section>`
     : `<section><div class="small muted"><a href="#regatas">Regatas</a>${champ ? ' · ' + esc(champ.name) : ''}</div>
-      <div class="row spread"><h1>${esc(e.name)}</h1>${S.canEdit ? `<button class="btn sm" data-a="editEvent" data-id="${esc(eid)}">Editar prova</button>` : ''}</div>
+      <div class="row spread"><h1>${esc(e.name)}</h1>${canEditEv(eid) ? `<button class="btn sm" data-a="editEvent" data-id="${esc(eid)}">Editar prova</button>` : ''}</div>
       <div class="muted">${evDates(e)}${e.venue ? ' · ' + esc(e.venue) : ''}${S.clubs[e.clubId] ? ' · ' + esc(S.clubs[e.clubId].name) : ''}</div></section>`;
-  return `${head}
-    <div class="card"><div class="row spread"><h3>Regatas</h3>${S.canEdit ? `<button class="btn sm pri" data-a="newRace" data-e="${esc(eid)}">+ Nova regata</button>` : ''}</div>
+  const lockBar = e.locked
+    ? `<div class="info row spread" style="align-items:center"><span>🔒 <b>Prova fechada</b> a ${dPT(String(e.locked.at || '').slice(0, 10))} — resultados publicados e certificados congelados.</span>${S.canEdit ? `<button class="btn sm" data-a="evUnlock" data-id="${esc(eid)}">Reabrir prova</button>` : ''}</div>`
+    : (S.canEdit && rs.length ? `<div class="row" style="justify-content:flex-end"><button class="btn sm" data-a="evLock" data-id="${esc(eid)}" title="Congela certificados e bloqueia alterações">🔒 Fechar prova (resultados publicados)</button></div>` : '');
+  return `${head}${lockBar}
+    <div class="card"><div class="row spread"><h3>Regatas</h3>${canEditEv(eid) ? `<button class="btn sm pri" data-a="newRace" data-e="${esc(eid)}">+ Nova regata</button>` : ''}</div>
       <div class="list">${raceItems || '<div class="small muted">Ainda sem regatas.</div>'}</div></div>
     ${single ? '' : `<div class="card"><div class="row spread"><h3>Classificação da prova</h3><span class="small muted">${champEvents(e.champ).length > 1 ? 'soma sem descartes' : st.nDiscards + ' descarte(s)'}</span></div>
       <div class="tabs">${tabs.map(t => `<button data-a="egrp" data-k="${esc(t.k)}" class="${S.evGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
@@ -321,16 +328,16 @@ function viewRace(id) {
   }).join('');
   const photos = STATIC ? '' : (race.photos || []).map(p => `<a href="/_blob/${esc(p)}" target="_blank" rel="noopener"><img src="/_blob/${esc(p)}" alt="Folha de chegadas"></a>`).join('');
   return `<section class="row spread"><div><div class="small muted"><a href="#${champEvents(ev.champ).length > 1 ? 'prova-' + esc(race.event) : 'regatas'}">${champEvents(ev.champ).length > 1 ? esc(ev.name || 'Prova') : 'Regatas'}</a> · R${idx}</div><h1>${esc(race.name)}</h1></div>
-      <div class="row"><span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span>${S.canEdit ? `<button class="btn sm" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}</div></section>
+      <div class="row"><span class="chip st-${race.status === 'final' ? 'final' : 'provisoria'}">${race.status === 'final' ? 'Final' : 'Provisória'}</span>${canEditEv(race.event) ? `<button class="btn sm" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : isLocked(race.event) ? '<span class="chip">🔒 fechada</span>' : ''}</div></section>
     <div class="kpis"><div class="kpi"><b>${dPT(race.date).slice(0, 5)}</b><span>${esc(race.date.slice(0, 4))}</span></div><div class="kpi"><b>${race.start ? esc(race.start.slice(0, 5)) : '—'}</b><span>${race.start ? 'largada' : 'largada por ler'}</span></div>
       <div class="kpi"><b>${esc(race.system.replace('_', ' '))}</b><span>${race.system.endsWith('WL') ? 'barl./sotav.' : race.system.endsWith('GPH') ? 'GPH' : 'costeiro'}</span></div>${race.distance ? `<div class="kpi"><b>${esc(race.distance)} NM</b><span>distância</span></div>` : ''}${race.timeLimitDur ? `<div class="kpi"><b>${esc(race.timeLimitDur.slice(0, 5))}</b><span>tempo limite</span></div>` : race.timeLimit ? `<div class="kpi"><b>${esc(race.timeLimit.slice(0, 5))}</b><span>hora limite</span></div>` : ''}</div>
     ${problems.map(p => `<div class="warn">${esc(p)}</div>`).join('')}
     <div class="tabs">${tabs.map(t => `<button data-a="rgrp" data-k="${esc(t.k)}" class="${S.raceGroup === t.k ? 'on' : ''}">${esc(t.t)}</button>`).join('')}</div>
     <div class="scroll"><table><thead><tr><th>#</th><th>Barco</th><th class="n">Chegada</th><th class="n">Decorrido</th><th class="n">${isToD ? 'ToD' : 'ToT'}</th><th class="n">Corrigido</th><th class="n">Delta</th><th class="n">Pts</th></tr></thead><tbody>${tr || '<tr><td colspan="8" class="empty">Sem chegadas.</td></tr>'}</tbody></table></div>
     <p class="small muted">Siglas (DNF, DNS, RET…) = inscritos na prova + 1 (RRS A5.2). Inscritos sem resultado ficam DNC nas classificações. Rating = certificado em vigor a ${dPT(race.ratingDate || race.date)}${race.ratingDate && race.ratingDate !== race.date ? ' (1.º dia da prova)' : ''}; toque no valor para ver a origem.</p>
-    <div class="row">${S.canEdit ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
-    ${S.canEdit || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${S.canEdit ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
-      ${S.canEdit && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
+    <div class="row">${canEditEv(race.event) ? `<button class="btn pri" data-a="editFin" data-id="${esc(id)}">Editar chegadas</button><button class="btn" data-a="editRace" data-id="${esc(id)}">Editar regata</button>` : ''}<button class="btn" data-a="copyRace" data-id="${esc(id)}">Copiar resultados</button></div>
+    ${canEditEv(race.event) || photos ? `<div class="card photo"><div class="row spread"><h3>Folha de chegadas</h3>${canEditEv(race.event) ? `<label class="btn sm" for="photoIn">Adicionar foto</label><input id="photoIn" type="file" accept="image/*" data-id="${esc(id)}" hidden>` : ''}</div>${photos || '<div class="small muted">Sem fotografia. Adicione a foto da folha para a ler com o Claude e para ficar como registo.</div>'}
+      ${canEditEv(race.event) && (race.photos || []).length ? `<button class="btn" data-a="readSheet" data-id="${esc(id)}">Ler folha com o Claude</button>` : ''}</div>` : ''}`;
 }
 
 /* ---------- editor de chegadas ---------- */
@@ -408,8 +415,8 @@ function viewFleet() {
 /* Frota → Inscritos: gestão das inscrições do campeonato (por prova quando há várias). */
 function entryRow(id, eid, rules, racedIds, day) {
   const b = S.boats[id];
-  const del = !S.canEdit ? '' : `<td>${eid ? (racedIds.has(id) ? '<span class="small muted" title="Tem resultados nesta prova">—</span>' : `<button class="x btn sm dang" data-a="entryDel" data-e="${esc(eid)}" data-id="${esc(id)}" aria-label="Retirar ${esc(b.name)}" title="Retirar da prova">×</button>`) : `<button class="btn sm dang" data-a="unenroll" data-id="${esc(id)}">Retirar</button>`}</td>`;
-  return `<tr><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span><span class="sub">${(() => { const sk = skipperIn(id, eid), own = eid && sk !== b.skipperId; return `${esc(skipperName(sk) || 'sem skipper')}${own ? ' <span class="chip" title="Skipper só nesta prova">nesta prova</span>' : ''}${clubShort(b.clubId) ? ' · ' + esc(clubShort(b.clubId)) : ''}${S.canEdit && eid ? ` <button class="btn sm" data-a="entSkip" data-e="${esc(eid)}" data-id="${esc(id)}" title="Mudar o skipper nesta prova" style="padding:0 6px">✎</button>` : ''}`; })()}</span></td><td>${E.certAt(b, day, dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td>${del}</tr>`;
+  const del = !(eid ? canEditEv(eid) : S.canEdit) ? (S.canEdit ? '<td></td>' : '') : `<td>${eid ? (racedIds.has(id) ? '<span class="small muted" title="Tem resultados nesta prova">—</span>' : `<button class="x btn sm dang" data-a="entryDel" data-e="${esc(eid)}" data-id="${esc(id)}" aria-label="Retirar ${esc(b.name)}" title="Retirar da prova">×</button>`) : `<button class="btn sm dang" data-a="unenroll" data-id="${esc(id)}">Retirar</button>`}</td>`;
+  return `<tr><td class="boat">${clubIcon(b.clubId)}<a href="#boat-${esc(id)}" style="color:inherit;text-decoration:none">${esc(b.name)}</a> ${divChip(b, rules)}<span class="sub">${esc([b.sail, b.type].filter(Boolean).join(' · '))}</span><span class="sub">${(() => { const sk = skipperIn(id, eid), own = eid && sk !== b.skipperId; return `${esc(skipperName(sk) || 'sem skipper')}${own ? ' <span class="chip" title="Skipper só nesta prova">nesta prova</span>' : ''}${clubShort(b.clubId) ? ' · ' + esc(clubShort(b.clubId)) : ''}${canEditEv(eid) ? ` <button class="btn sm" data-a="entSkip" data-e="${esc(eid)}" data-id="${esc(id)}" title="Mudar o skipper nesta prova" style="padding:0 6px">✎</button>` : ''}`; })()}</span></td><td>${E.certAt(b, day, dbState()) ? '<span class="chip k-orc">ok</span>' : S.canEdit ? `<button class="btn sm dang" data-a="addCert" data-id="${esc(id)}">sem certificado</button>` : '<span class="chip">sem certificado</span>'}</td>${del}</tr>`;
 }
 function viewFleetEntries(head) {
   if (!S.ctx) return `<section><h1>Frota</h1></section>${head}<div class="empty">Escolha ou crie um campeonato no topo.</div>`;
@@ -429,7 +436,7 @@ function viewFleetEntries(head) {
   const racedIds = new Set((eid ? eventRaces(eid) : champRaces(cid)).flatMap(r => (r.finishes || []).map(f => f.boatId)));
   const day = (ev && ev.dateFrom) || c.dateFrom || today();
   const target = eid ? `data-e="${esc(eid)}"` : single ? `data-c="${esc(cid)}"` : '';
-  const canAct = S.canEdit && (eid || single);
+  const canAct = S.canEdit && (eid || single) && !(eid && isLocked(eid));
   const actions = !canAct ? '' : `<div class="row">
       <label class="btn sm" for="impFile">Importar lista (Excel, CSV, PDF ou foto)</label><input id="impFile" type="file" accept=".xlsx,.xls,.csv,.ods,.pdf,application/pdf,image/*" ${target} hidden>
       <button class="btn sm" data-a="entries" ${eid ? `data-id="${esc(eid)}"` : `data-c="${esc(cid)}"`}>Escolher da base de dados</button>
@@ -598,8 +605,8 @@ function openCertForm(boatId, tab) {
      ${field('cFrom', (S.boats[boatId].certs || []).length ? 'Válido a partir de (vazio = dia seguinte à emissão)' : 'Válido a partir de (vazio = 1 de janeiro do ano do certificado)', '', 'type="date"')}<div id="catRes" class="list"></div>`;
   else if (tab === 'manual') body = `<div class="grid-f">${field('mFrom', 'Válido a partir de', today(), 'type="date"')}${sel('mKind', 'Tipo', 'manual', [['orc', 'Certificado ORC próprio'], ['teste', 'Certificado de teste'], ['copiado', 'Copiado de barco semelhante'], ['manual', 'Atribuído manualmente']])}
      ${field('mCL', 'ToT costeiro', '', 'inputmode="decimal"')}${field('mWL', 'ToT barl./sotav.', '', 'inputmode="decimal"')}${field('mTodCL', 'ToD costeiro (s/NM)', '', 'inputmode="decimal"')}${field('mTodWL', 'ToD barl./sotav. (s/NM)', '', 'inputmode="decimal"')}
-     ${field('mGPH', 'GPH (s/NM)', '', 'inputmode="decimal"')}${field('mCDL', 'CDL', '', 'inputmode="decimal"')}${field('mSrc', 'Origem (barco, país, ano)', '')}</div>
-     <div class="small muted">Se só tiver o ToD, a app calcula o ToT = 600 ÷ ToD. Em certificados até 2019 o ToT barl./sotav. impresso usa 675 ÷ ToD: introduza o ToD para converter para a escala atual.</div>
+     ${field('mGPH', 'GPH (s/NM)', '', 'inputmode="decimal"')}${field('mCDL', 'CDL', '', 'inputmode="decimal"')}${field('mYear', 'Ano do certificado', '', 'inputmode="numeric" placeholder="ex.: 2016"')}${field('mSrc', 'Origem (barco, país, ano)', '')}</div>
+     <div class="small muted">Se só tiver o ToD, a app calcula o ToT = 600 ÷ ToD. Certificados até 2018 imprimiam o ToT barl./sotav. na escala antiga (675 ÷ ToD): indicando o ano, a app converte-o automaticamente para a escala atual (× 600/675). O certificado é usado até o barco ter um certificado mais recente.</div>
      <button class="btn pri" data-a="certManual" data-b="${esc(boatId)}">Adicionar certificado</button>`;
   else {
     const refs = Object.entries(S.boats).filter(([k]) => k !== boatId).sort(byName);
@@ -767,12 +774,13 @@ function openEnroll(boatId) {
   const cid = ctxId(), evs = champEvents(cid);
   const raced = eid => eventRaces(eid).some(r => (r.finishes || []).some(f => f.boatId === boatId));
   dialog('Inscrever · ' + S.boats[boatId].name, `<div class="small muted">Provas de ${esc(S.champs[cid].name)} em que o barco fica inscrito:</div>
-    <div class="list">${evs.map(([eid, e]) => `<label class="item" style="cursor:pointer"><input type="checkbox" class="enrChk" value="${esc(eid)}" ${(e.entries || []).includes(boatId) ? 'checked' : ''} ${raced(eid) ? 'disabled title="Tem resultados nesta prova"' : ''}><div class="grow"><div class="title">${esc(e.name)}</div><div class="meta">${evDates(e)} · ${(e.entries || []).length} inscritos${raced(eid) ? ' · com resultados' : ''}</div></div></label>`).join('')}</div>
+    <div class="list">${evs.map(([eid, e]) => `<label class="item" style="cursor:pointer"><input type="checkbox" class="enrChk" value="${esc(eid)}" ${(e.entries || []).includes(boatId) ? 'checked' : ''} ${e.locked ? 'disabled title="Prova fechada"' : raced(eid) ? 'disabled title="Tem resultados nesta prova"' : ''}><div class="grow"><div class="title">${esc(e.name)}</div><div class="meta">${evDates(e)} · ${(e.entries || []).length} inscritos${e.locked ? ' · 🔒 fechada' : raced(eid) ? ' · com resultados' : ''}</div></div></label>`).join('')}</div>
     <div class="row spread"><button class="btn" data-a="finCancel">Cancelar</button><button class="btn pri" data-a="enrollSave" data-id="${esc(boatId)}">Gravar</button></div>`);
 }
 async function setEntry(eid, boatId, on) {
   const ev = clone(S.events[eid]), has = (ev.entries || []).includes(boatId);
   if (on === has) return true;
+  if (ev.locked) { lockedMsg(); return false; }
   ev.entries = on ? [...(ev.entries || []), boatId].sort() : ev.entries.filter(b => b !== boatId);
   return save('events', eid, ev);
 }
@@ -781,6 +789,28 @@ async function onClick(e) {
   if (t.closest('a[href]')) e.preventDefault();
   const a = t.dataset.a, id = t.dataset.id;
   const confirmOnce = (label) => { if (t.dataset.confirm === '1') return true; t.dataset.confirm = '1'; t.textContent = label || 'Confirmar: apagar de vez'; return false; };
+  const evOf = () => { const r = S.races[id] || S.races[S.edit && S.edit.id]; return t.dataset.e || (['editEvent', 'eventSave', 'eventDel', 'entries', 'entriesSave'].includes(a) ? (id || (S.edit && S.edit.id)) : r ? r.event : ''); };
+  if (['newRace', 'editRace', 'raceSave', 'raceDel', 'editFin', 'finSave', 'readSheet', 'editEvent', 'eventSave', 'eventDel', 'entries', 'entriesSave', 'entryDel', 'entryDelAll', 'entSkip', 'entSkipSave', 'entSkipReset'].includes(a) && isLocked(evOf())) { lockedMsg(); return; }
+  if (a === 'evLock') {
+    if (!confirmOnce('Confirmar: fechar prova')) return;
+    const ev = clone(S.events[id]), day = ev.dateFrom, frozen = {};
+    for (const b of ev.entries || []) {
+      const boat = S.boats[b]; if (!boat) continue;
+      const set = new Set();
+      for (const f of Object.keys(E.SYSTEMS).concat('CDL')) { const c = E.certAt(boat, day, dbState(), f); if (c) set.add(c); }
+      if (set.size) frozen[b] = [...set].map(clone);
+    }
+    ev.locked = { at: new Date().toISOString() }; ev.frozen = frozen;
+    if (await save('events', id, ev)) { toast('Prova fechada: certificados congelados e alterações bloqueadas.'); render(); }
+    return;
+  }
+  if (a === 'evUnlock') {
+    if (t.dataset.confirm === '1') { t.dataset.confirm = '2'; t.textContent = 'Tem a certeza? Os resultados publicados podem mudar — clique para reabrir'; return; }
+    if (t.dataset.confirm !== '2') { t.dataset.confirm = '1'; t.textContent = 'Reabrir uma prova publicada?'; return; }
+    const ev = clone(S.events[id]); delete ev.locked; delete ev.frozen;
+    if (await save('events', id, ev)) { toast('Prova reaberta. Volte a fechá-la depois de publicar.'); render(); }
+    return;
+  }
   if (a === 'grp') { S.group = t.dataset.k; render(); }
   else if (a === 'rgrp') { S.raceGroup = t.dataset.k; render(); }
   else if (a === 'egrp') { S.evGroup = t.dataset.k; render(); }
@@ -989,9 +1019,14 @@ async function onClick(e) {
   else if (a === 'certManual') {
     const n = x => x ? Number(x.replace(',', '.')) : null;
     let CL = n(v('mCL')), WL = n(v('mWL')); const tCL = n(v('mTodCL')), tWL = n(v('mTodWL')), gph = n(v('mGPH'));
-    if (!CL && tCL) CL = Math.round(600 / tCL * 1e4) / 1e4; if (tWL) WL = Math.round(600 / tWL * 1e4) / 1e4;
+    const yr = Number(v('mYear')) || 0; let conv = false;
+    if (yr && (yr < 1990 || yr > 2100)) { toast('Ano do certificado inválido.'); return; }
+    if (!CL && tCL) CL = Math.round(600 / tCL * 1e4) / 1e4;
+    if (tWL) WL = Math.round(600 / tWL * 1e4) / 1e4;
+    else if (WL && yr && yr <= 2018) { WL = Math.round(WL * 600 / 675 * 1e4) / 1e4; conv = true; } // regra ORC: ToT barl./sotav. passou de 675÷ToD para 600÷ToD em 2019
     if (!CL && !WL && !gph) { toast('Indique pelo menos um ToT, ToD ou GPH.'); return; }
-    const c = { from: v('mFrom'), kind: v('mKind'), src: v('mSrc') || v('mKind') }; if (CL) c.ToT_CL = CL; if (WL) c.ToT_WL = WL; if (tCL) c.ToD_CL = tCL; if (tWL) c.ToD_WL = tWL; if (gph) c.GPH = gph; if (n(v('mCDL'))) c.CDL = n(v('mCDL'));
+    const c = { from: v('mFrom'), kind: v('mKind'), src: (v('mSrc') || v('mKind')) + (yr ? ' · cert. ' + yr : '') + (conv ? ' · ToT barl. convertido 675→600' : '') };
+    if (yr) c.year = yr; if (CL) c.ToT_CL = CL; if (WL) c.ToT_WL = WL; if (tCL) c.ToD_CL = tCL; if (tWL) c.ToD_WL = tWL; if (gph) c.GPH = gph; if (n(v('mCDL'))) c.CDL = n(v('mCDL'));
     addCert(t.dataset.b, c);
   }
   else if (a === 'certDeriv') {
@@ -1134,10 +1169,10 @@ document.addEventListener('change', async e => {
     catch (_) { toast('Não foi possível ler a imagem.'); }
     e.target.value = ''; return;
   }
-  if (e.target.id === 'impFile' && e.target.files[0]) { const f = e.target.files[0], d = e.target.dataset; e.target.value = ''; const eid = d.e || await ensureEvent(d.c); return eid && importEntries(f, eid); }
+  if (e.target.id === 'impFile' && e.target.files[0]) { const f = e.target.files[0], d = e.target.dataset; e.target.value = ''; const eid = d.e || await ensureEvent(d.c); if (eid && isLocked(eid)) { lockedMsg(); return; } return eid && importEntries(f, eid); }
   if (e.target.id !== 'photoIn' || !e.target.files[0]) return;
   if (!ASSETS) { toast('Só os editores podem guardar fotografias.'); return; }
-  const id = e.target.dataset.id; toast('A enviar fotografia…');
+  const id = e.target.dataset.id; if (isLocked((S.races[id] || {}).event)) { e.target.value = ''; lockedMsg(); return; } toast('A enviar fotografia…');
   try {
     const up = await ASSETS.upload(await shrink(e.target.files[0]));
     const r = clone(S.races[id]); r.photos = (r.photos || []).concat([up.id]);

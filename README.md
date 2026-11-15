@@ -19,6 +19,13 @@ Estrutura: **Campeonato → Prova (evento, com inscritos) → Regatas**. Um camp
 2. `node scripts/build-db.mjs` — atualiza `docs/data/db.json` **só se os dados mudaram**.
 3. Se mudou, commit e push para `main`; o GitHub Pages publica em 1–2 minutos.
 
+## Regras de certificados e provas publicadas
+
+- **Certificado usado:** o mais recente em vigor no 1.º dia da prova (o Anúncio de Regata define-o). Um certificado novo adicionado a um barco que já tem certificados vale a partir do dia seguinte à emissão, para não alterar provas já corridas.
+- **Certificados antigos/atribuídos (até 2018):** no formulário *Manual* indique o *Ano do certificado*. Até 2018 o ToT barlavento/sotavento era impresso na escala antiga (675 ÷ ToD); a app converte-o para a escala atual (× 600/675, i.e. 600 ÷ ToD). Esse certificado é usado até o barco ter um certificado mais recente (do ano da competição).
+- **Divisões** de um campeonato usam os certificados em vigor na data de fim do campeonato.
+- **Provas publicadas ficam fechadas:** "🔒 Fechar prova" (página da prova) congela os certificados usados por cada barco e bloqueia regatas, chegadas, fotos, inscrições e skippers. Os certificados antigos continuam registados nos barcos. "Reabrir prova" pede dupla confirmação e só deve ser usado para corrigir um erro.
+
 ## Alterar a app
 
 Editar `app/`, testar, atualizar o número `?v=` dos ficheiros em `app/index.html` (evita cache), publicar no artifact e copiar para `docs/` (`cp app/*.js app/*.css app/index.html docs/`).
